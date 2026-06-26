@@ -1136,6 +1136,15 @@ This section documents architectural decisions and the reasoning behind them. Us
 
 ---
 
+## 21. Future Backend Integration (TODO)
+
+When the Supabase backend database and phone OTP authentication are fully integrated, keep the following guidelines in mind:
+
+* **E.164 Phone Format Storage**: The validated phone number must be submitted and stored in the database profiles and trusted contacts tables in **E.164 international format** (e.g. `+2348031234567` or `+15550000000`).
+* **Why E.164**: This format ensures full compatibility with Supabase Auth OTP, SMS notification providers (like Twilio SMS / Twilio Verify), and future messaging services without regional formatting conflicts.
+
+---
+
 *useAnchor MVP — Internal Technical Documentation*
 *Status: Pre-development*
 *Last updated: June 2026*
