@@ -68,14 +68,14 @@ export default function HomeScreen() {
 
   return (
     <div className="min-h-screen flex flex-col w-full bg-[#fff8f6]">
-      
+
       {/* ========================================== */}
       {/*         MOBILE LAYOUT (md:hidden)          */}
       {/* ========================================== */}
       <div className="block md:hidden flex-1 flex flex-col items-center justify-start px-4">
         {/* Mobile wrapper */}
         <main className="w-full max-w-[390px] min-h-[700px] flex flex-col justify-between py-8 space-y-6">
-          
+
           {/* Header */}
           <header className="w-full flex items-center justify-between px-2">
             <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export default function HomeScreen() {
       {/*        DESKTOP LAYOUT (hidden md:flex)     */}
       {/* ========================================== */}
       <div className="hidden md:flex flex-col flex-grow relative w-full">
-        
+
         {/* Top Header */}
         <header className="fixed top-0 left-0 w-full h-16 bg-white border-b border-[#e2bfb5] flex justify-between items-center px-6 z-50">
           <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export default function HomeScreen() {
 
           <button
             onClick={() => navigate("/session/sos")}
-            className="mt-auto w-full py-3 bg-[#ac2d00] text-white font-bold rounded-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all shadow-md"
+            className="mt-auto w-full py-3 bg-[#ac2d00] hover:bg-[#8a2400] text-white font-bold rounded-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all shadow-md shadow-[0_0_14px_rgba(172,45,0,0.5)]"
           >
             <Siren size={18} />
             <span>Start SOS</span>
@@ -302,7 +302,7 @@ export default function HomeScreen() {
         {/* Desktop Main Content Container */}
         <main className="ml-64 mt-16 flex-grow h-[calc(100vh-64px)] overflow-y-auto bg-[#fff8f6] p-8">
           <div className="max-w-6xl mx-auto flex flex-col gap-8">
-            
+
             {/* Greeting Header */}
             <header className="text-left">
               <h1 className="text-[32px] font-semibold text-[#261814]">
@@ -315,11 +315,11 @@ export default function HomeScreen() {
 
             {/* Main Dashboard Layout Grid */}
             <div className="grid grid-cols-12 gap-8 items-start">
-              
+
               {/* Left Column: Active Session Detail (Large Card) */}
               <section className="col-span-12 lg:col-span-8 flex flex-col">
                 <div className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col" style={{ borderColor: "#e2bfb5" }}>
-                  
+
                   {/* Card Header */}
                   <div className="p-5 flex justify-between items-center border-b bg-[#fff1ed]" style={{ borderColor: "#e2bfb5" }}>
                     <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ export default function HomeScreen() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                
+
                 {/* Session Card 1 */}
                 <div
                   className="bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center gap-4 text-left"
@@ -557,7 +557,7 @@ export default function HomeScreen() {
 
         {/* Floating SOS Trigger Button */}
         <div className="fixed bottom-6 right-6 z-50 group">
-          <div className="absolute inset-0 bg-[#ac2d00]/20 rounded-full animate-ping scale-150" />
+          <div className="absolute inset-0 bg-[#ac2d00]/40 rounded-full animate-ping scale-150" />
           <button
             onClick={() => navigate("/session/sos")}
             className="w-20 h-20 bg-[#ac2d00] text-white rounded-full shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-transform hover:scale-105"
@@ -565,7 +565,7 @@ export default function HomeScreen() {
             <Siren size={30} className="text-white" />
             <span className="text-[10px] font-extrabold uppercase tracking-wider">SOS</span>
           </button>
-          <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#261814] text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
+          <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#ac2d00] text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
             Trigger Emergency Alert
           </div>
         </div>
