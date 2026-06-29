@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SafeGuard - Session Timeline</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#ffe9e4",
+                        "secondary": "#954831",
+                        "on-surface-variant": "#5a413a",
+                        "on-tertiary-container": "#fcfcff",
+                        "surface-container-high": "#fde2dc",
+                        "tertiary-fixed-dim": "#86ceff",
+                        "on-primary-container": "#fffbff",
+                        "surface-container-low": "#fff1ed",
+                        "inverse-on-surface": "#ffede8",
+                        "outline": "#8e7068",
+                        "on-error": "#ffffff",
+                        "surface-bright": "#fff8f6",
+                        "on-tertiary-fixed-variant": "#004c6d",
+                        "secondary-fixed": "#ffdbd1",
+                        "primary-fixed-dim": "#ffb5a0",
+                        "secondary-fixed-dim": "#ffb5a0",
+                        "primary-container": "#cf4519",
+                        "tertiary": "#00628c",
+                        "inverse-primary": "#ffb5a0",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#b02f00",
+                        "on-secondary-container": "#78321d",
+                        "on-background": "#261814",
+                        "primary": "#ac2d00",
+                        "on-primary-fixed": "#3b0900",
+                        "surface": "#fff8f6",
+                        "on-secondary-fixed-variant": "#77311c",
+                        "error": "#ba1a1a",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#3d2d28",
+                        "on-surface": "#261814",
+                        "outline-variant": "#e2bfb5",
+                        "tertiary-fixed": "#c8e6ff",
+                        "tertiary-container": "#007caf",
+                        "on-secondary-fixed": "#3b0900",
+                        "surface-variant": "#f7ddd6",
+                        "on-primary-fixed-variant": "#872100",
+                        "surface-container-highest": "#f7ddd6",
+                        "on-tertiary-fixed": "#001e2e",
+                        "on-secondary": "#ffffff",
+                        "background": "#fff8f6",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#ff9c80",
+                        "primary-fixed": "#ffdbd1",
+                        "surface-dim": "#efd4ce"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.8rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "12px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "3xl": "40px",
+                        "xl": "24px",
+                        "lg": "16px",
+                        "4xl": "48px",
+                        "2xl": "32px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Hanken Grotesk"],
+                        "body": ["Hanken Grotesk"],
+                        "display": ["Hanken Grotesk"],
+                        "mono": ["JetBrains Mono"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "label": ["Hanken Grotesk"],
+                        "h1": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}],
+                        "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                        "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                        "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                        "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                        "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                        "h1-mobile": ["20px", {"lineHeight": "26px", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            background-color: #FAFAF7;
+        }
+        .timeline-line {
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #E4E2DB;
+            z-index: 0;
+        }
+        .node-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(186, 26, 26, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
+        }
+        .custom-card-shadow {
+            box-shadow: 0px 2px 4px rgba(26, 26, 24, 0.05);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface border-b border-outline-variant shadow-sm px-lg h-[64px] flex justify-between items-center">
+<div class="flex items-center gap-md">
+<button class="w-10 h-10 flex items-center justify-center active:scale-95 transition-transform text-on-surface-variant">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-h1 text-h1-mobile text-primary tracking-tight">Walk Home: Park District</h1>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a woman in her 30s with a kind expression, wearing a minimalist neutral-toned sweater. The lighting is soft and high-key, reflecting a modern, reliable, and secure corporate-style photography aesthetic that matches the SafeGuard brand's clean UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsoYbLxssscp2WsGDv2d8ZlfFL0iLtG_60UqAK-n2TYPJsxQ2He3K-bhykg_jps0c9lci5cTHVWhQyctt0xwq9q5mrBW4KzQSmuAPzhgJPDfDuOG6HdTHmHxVh_PoPNNi6YpcvoRoEBLBXZ3Szq4tSKZMXILjZajlBDDeIi3l8JtRhl73pmvc3kMu-wFC6BhZWvS-2PuIPfxonqL5RgYQgknos6twmkmI67XfKBca2vdGB2xoHyIu9nSerP0IoRbBqQmU-5wtRGoE"/>
+</div>
+</header>
+<main class="mt-[64px] mb-[80px] p-lg flex flex-col gap-lg max-w-xl mx-auto w-full">
+<!-- Summary Card -->
+<section class="bg-white border border-outline-variant rounded-xl p-lg custom-card-shadow">
+<div class="flex justify-between items-start mb-md">
+<div>
+<p class="font-label text-label text-on-surface-variant uppercase tracking-widest mb-xs">Session with</p>
+<h2 class="font-h2 text-h2">Marcus Thompson</h2>
+</div>
+<span class="bg-[#ECFDF5] text-[#065F46] font-label text-[10px] px-sm py-xs rounded-full uppercase font-bold border border-[#A7F3D0]">Ended Safely</span>
+</div>
+<div class="grid grid-cols-2 gap-md pt-md border-t border-outline-variant">
+<div>
+<p class="font-label text-label text-on-surface-variant">Total Duration</p>
+<p class="font-body font-semibold">42 Minutes</p>
+</div>
+<div>
+<p class="font-label text-label text-on-surface-variant">Date</p>
+<p class="font-body font-semibold">Oct 24, 10:15 PM</p>
+</div>
+</div>
+</section>
+<!-- Timeline -->
+<section class="relative">
+<div class="timeline-line"></div>
+<div class="flex flex-col gap-xl">
+<!-- Session Started -->
+<div class="relative pl-3xl flex flex-col gap-xs">
+<div class="absolute left-0 top-1 w-[40px] h-[40px] flex items-center justify-center z-10">
+<div class="w-3 h-3 bg-primary rounded-full ring-4 ring-white"></div>
+</div>
+<div class="flex justify-between items-center">
+<h3 class="font-h2 text-h2">Session Started</h3>
+<span class="font-mono text-label text-on-surface-variant">10:15 PM</span>
+</div>
+<p class="font-body-sm text-on-surface-variant">Tracking initiated for 'Park District' route.</p>
+</div>
+<!-- Check-in: Safe -->
+<div class="relative pl-3xl flex flex-col gap-xs">
+<div class="absolute left-0 top-1 w-[40px] h-[40px] flex items-center justify-center z-10">
+<div class="w-3 h-3 bg-tertiary rounded-full ring-4 ring-white"></div>
+</div>
+<div class="flex justify-between items-center">
+<h3 class="font-h2 text-h2 flex items-center gap-xs">
+                            Check-in: Safe
+                            <span class="material-symbols-outlined text-[16px] text-tertiary">check_circle</span>
+</h3>
+<span class="font-mono text-label text-on-surface-variant">10:25 PM</span>
+</div>
+<p class="font-body-sm text-on-surface-variant">First scheduled confirmation successful.</p>
+</div>
+<!-- Location Update -->
+<div class="relative pl-3xl flex flex-col gap-xs">
+<div class="absolute left-0 top-1 w-[40px] h-[40px] flex items-center justify-center z-10">
+<div class="w-2 h-2 bg-outline rounded-full ring-4 ring-white"></div>
+</div>
+<div class="flex justify-between items-center">
+<h3 class="font-h2 text-h2">Location Update</h3>
+<span class="font-mono text-label text-on-surface-variant">10:32 PM</span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-sm border border-outline-variant mt-xs">
+<p class="font-body-sm text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+                            Near 5th &amp; Harrison Ave
+                        </p>
+</div>
+</div>
+<!-- SOS Triggered (Prominent Node) -->
+<div class="relative pl-3xl flex flex-col gap-xs">
+<div class="absolute left-0 top-1 w-[40px] h-[40px] flex items-center justify-center z-10">
+<div class="w-4 h-4 bg-error rounded-full ring-4 ring-white node-pulse"></div>
+</div>
+<div class="bg-[#FEF2F2] border border-error-container rounded-xl p-md">
+<div class="flex justify-between items-center mb-xs">
+<h3 class="font-h2 text-h2 text-error flex items-center gap-xs">
+                                SOS Triggered
+                                <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+</h3>
+<span class="font-mono text-label text-error">10:40 PM</span>
+</div>
+<p class="font-body-sm text-on-surface mb-sm">Emergency contacts notified via silent trigger.</p>
+<div class="flex gap-sm">
+<button class="bg-error text-on-error px-md py-xs rounded-full font-label text-[10px] uppercase font-bold active:scale-95 transition-transform">View Alert Info</button>
+<button class="border border-error text-error px-md py-xs rounded-full font-label text-[10px] uppercase font-bold active:scale-95 transition-transform">Contact Audio</button>
+</div>
+</div>
+</div>
+<!-- Check-in: Missed / Resolve -->
+<div class="relative pl-3xl flex flex-col gap-xs">
+<div class="absolute left-0 top-1 w-[40px] h-[40px] flex items-center justify-center z-10">
+<div class="w-3 h-3 bg-secondary rounded-full ring-4 ring-white"></div>
+</div>
+<div class="flex justify-between items-center">
+<h3 class="font-h2 text-h2">SOS Resolved</h3>
+<span class="font-mono text-label text-on-surface-variant">10:55 PM</span>
+</div>
+<p class="font-body-sm text-on-surface-variant">User entered deactivation code. Status: Safe.</p>
+</div>
+<!-- Session Ended -->
+<div class="relative pl-3xl flex flex-col gap-xs pb-xl">
+<div class="absolute left-0 top-1 w-[40px] h-[40px] flex items-center justify-center z-10">
+<div class="w-3 h-3 bg-on-surface-variant rounded-full ring-4 ring-white"></div>
+</div>
+<div class="flex justify-between items-center">
+<h3 class="font-h2 text-h2">Session Ended</h3>
+<span class="font-mono text-label text-on-surface-variant">10:57 PM</span>
+</div>
+<p class="font-body-sm text-on-surface-variant">Tracking concluded successfully.</p>
+</div>
+</div>
+</section>
+<!-- Actions -->
+<section class="mt-xl flex flex-col gap-md">
+<button class="w-full h-12 bg-white border border-outline-variant text-error font-h2 flex items-center justify-center gap-sm rounded-lg active:scale-[0.98] transition-transform hover:bg-surface-container-lowest">
+<span class="material-symbols-outlined">delete</span>
+                Delete This Session
+            </button>
+<p class="font-label text-label text-on-surface-variant text-center px-xl">Deleting this session will remove it from your history and the history of your emergency contacts.</p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 h-[80px] bg-surface border-t border-outline-variant shadow-lg flex justify-around items-center px-md pb-safe">
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-high transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label text-label">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">timer</span>
+<span class="font-label text-label">Sessions</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-high transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label text-label">Contacts</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-high transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label text-label">Settings</span>
+</a>
+</nav>
+<script>
+        // Subtle interaction for timeline items
+        document.querySelectorAll('.pl-3xl').forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                item.style.transform = 'translateX(4px)';
+                item.style.transition = 'transform 0.2s ease-out';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.transform = 'translateX(0)';
+            });
+        });
+    </script>
+</body></html>

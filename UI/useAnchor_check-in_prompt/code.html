@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Safety Check-In | Active Reliability</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#ff9c80",
+                    "tertiary-fixed-dim": "#86ceff",
+                    "surface": "#fff8f6",
+                    "on-tertiary-fixed-variant": "#004c6d",
+                    "surface-dim": "#efd4ce",
+                    "inverse-primary": "#ffb5a0",
+                    "on-surface": "#261814",
+                    "on-primary-fixed-variant": "#872100",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#fff8f6",
+                    "primary-container": "#cf4519",
+                    "on-tertiary": "#ffffff",
+                    "surface-tint": "#b02f00",
+                    "secondary-fixed-dim": "#ffb5a0",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#ffdbd1",
+                    "surface-container": "#ffe9e4",
+                    "inverse-on-surface": "#ffede8",
+                    "surface-container-high": "#fde2dc",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-container": "#78321d",
+                    "on-primary-container": "#fffbff",
+                    "secondary": "#954831",
+                    "primary-fixed": "#ffdbd1",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed": "#3b0900",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#3d2d28",
+                    "surface-container-low": "#fff1ed",
+                    "on-primary-fixed": "#3b0900",
+                    "on-background": "#261814",
+                    "surface-variant": "#f7ddd6",
+                    "tertiary": "#00628c",
+                    "tertiary-container": "#007caf",
+                    "primary": "#ac2d00",
+                    "on-secondary-fixed-variant": "#77311c",
+                    "error-container": "#ffdad6",
+                    "primary-fixed-dim": "#ffb5a0",
+                    "outline-variant": "#e2bfb5",
+                    "on-surface-variant": "#5a413a",
+                    "background": "#fff8f6",
+                    "tertiary-fixed": "#c8e6ff",
+                    "outline": "#8e7068",
+                    "on-tertiary-fixed": "#001e2e",
+                    "on-tertiary-container": "#fcfcff",
+                    "surface-container-highest": "#f7ddd6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "16px",
+                    "3xl": "40px",
+                    "4xl": "48px",
+                    "sm": "8px",
+                    "xl": "24px",
+                    "2xl": "32px",
+                    "md": "12px",
+                    "xs": "4px"
+            },
+            "fontFamily": {
+                    "label": ["Hanken Grotesk"],
+                    "h1": ["Hanken Grotesk"],
+                    "mono": ["JetBrains Mono"],
+                    "display": ["Hanken Grotesk"],
+                    "body-sm": ["Hanken Grotesk"],
+                    "body": ["Hanken Grotesk"],
+                    "h2": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                    "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                    "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                    "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                    "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fff8f6;
+            font-family: 'Hanken Grotesk', sans-serif;
+            overflow: hidden;
+        }
+
+        .bottom-sheet {
+            transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+            box-shadow: 0px -4px 40px rgba(26, 26, 24, 0.1);
+        }
+
+        .pulse-ring {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            70% { transform: scale(1.4); opacity: 0; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        .backdrop-blur-overlay {
+            backdrop-filter: blur(8px);
+            background-color: rgba(38, 24, 20, 0.4);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="h-screen w-full flex flex-col">
+<!-- Background Content (Simulating /session/:id) -->
+<main class="flex-1 w-full relative overflow-hidden bg-surface">
+<!-- Mock Map Background -->
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="A clean, high-contrast digital map interface showing a suburban neighborhood in Chicago. The map features a minimalist Corporate Modern style with soft cream backgrounds and thin charcoal roads. A single primary-colored orange line traces a walking path, with a pulsing location marker in the center. The lighting is bright and airy, typical of a professional safety application UI." data-location="Chicago, Illinois" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA15k2zgiqEo6Ui5AAi6frSfSwrfCsPvmjxpy3agsq7eRzNuJF32iQxQsOvIX4KBRMH3aWs3fUkaTCokyZjQgY7wn3IvAVFYVX5CGvSZgQEV7Erf06tDot-vkZCQYjNCYy7HP0g3vmes3ERy7xiFJemuceCwn5D9XywVE68EN8z_KZpUT_tsnbpbs0GppSp3MMKzA5RKwrsIALYI-iqgA-21YZtGwy-0rOR1gGMLcZ0GTz-wlO-M1CbJ4LGlNUdJEG7wcLveT9NW5s')"></div>
+</div>
+<!-- Session Status Header -->
+<div class="absolute top-0 left-0 w-full p-lg z-10">
+<div class="bg-surface/90 backdrop-blur-md rounded-xl border border-outline-variant p-md flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-md">
+<div class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></div>
+<div>
+<p class="font-label text-label text-on-surface-variant">Active Session</p>
+<p class="font-h2 text-h2 text-on-surface">Evening Walk</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-mono text-label text-on-surface-variant">Elapsed</p>
+<p class="font-mono text-h2 text-primary font-bold">14:22</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Overlay Backdrop -->
+<div class="fixed inset-0 z-40 backdrop-blur-overlay transition-opacity duration-300 opacity-100" id="backdrop"></div>
+<!-- Bottom Sheet Modal -->
+<div class="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-[32px] bottom-sheet translate-y-0 max-w-md mx-auto w-full border-t border-outline-variant" id="bottomSheet">
+<!-- Drag Handle Decorative -->
+<div class="w-full flex justify-center py-md">
+<div class="w-10 h-1 rounded-full bg-outline-variant"></div>
+</div>
+<div class="px-xl pb-3xl flex flex-col items-center text-center">
+<!-- Large Icon Container -->
+<div class="relative mb-xl mt-sm">
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-16 h-16 rounded-full bg-primary/20 pulse-ring"></div>
+</div>
+<div class="relative w-14 h-14 bg-surface rounded-full flex items-center justify-center border-2 border-primary shadow-sm text-primary">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+</div>
+<h1 class="font-display text-display text-on-surface mb-xs">Are you safe?</h1>
+<p class="font-body text-body text-on-surface-variant max-w-[280px] mb-sm">Your next check-in was due. Let your contacts know how you're doing.</p>
+<div class="flex items-center gap-xs mb-xl">
+<span class="material-symbols-outlined text-label text-on-surface-variant" style="font-variation-settings: 'FILL' 0;">schedule</span>
+<span class="font-mono text-label text-on-surface-variant uppercase">Check-in due at 3:45 PM</span>
+</div>
+<!-- Action Buttons Stack -->
+<div class="w-full flex flex-col gap-md mb-xl">
+<!-- I'm Safe Button -->
+<button class="w-full h-[56px] px-lg flex items-center gap-md bg-[#E8F8F2] text-[#1D9E75] rounded-xl hover:opacity-90 active:scale-[0.98] transition-all group">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-h2 text-h2">I'm Safe</span>
+</button>
+<!-- Extend Session Button -->
+<button class="w-full h-[56px] px-lg flex items-center justify-between bg-[#FEF9EC] text-[#D4880A] rounded-xl hover:opacity-90 active:scale-[0.98] transition-all">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">more_time</span>
+<span class="font-h2 text-h2">Extend Session</span>
+</div>
+<span class="bg-[#D4880A]/10 px-sm py-xs rounded-full font-label text-label font-bold">+30 min</span>
+</button>
+<!-- End Session Button -->
+<button class="w-full h-[56px] px-lg flex items-center gap-md bg-surface-container-high text-on-surface rounded-xl hover:opacity-90 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">logout</span>
+<span class="font-h2 text-h2">End Session</span>
+</button>
+<!-- Need Help Button (Danger) -->
+<button class="w-full h-[56px] px-lg flex items-center gap-md bg-[#FEF2F2] text-[#DC2626] rounded-xl border border-[#DC2626]/10 hover:opacity-90 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">report</span>
+<span class="font-h2 text-h2 font-bold uppercase">Need Help</span>
+</button>
+</div>
+<!-- Warning Text -->
+<p class="font-body-sm text-body-sm text-on-surface-variant/60 italic">
+                No response in 5 minutes will alert your contacts automatically.
+            </p>
+</div>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        // Simple entrance animation simulation
+        window.onload = () => {
+            const sheet = document.getElementById('bottomSheet');
+            const backdrop = document.getElementById('backdrop');
+            
+            // Sheet starts off-screen and slides in
+            sheet.style.transform = 'translateY(100%)';
+            backdrop.style.opacity = '0';
+            
+            setTimeout(() => {
+                sheet.style.transform = 'translateY(0)';
+                backdrop.style.opacity = '1';
+            }, 100);
+        };
+
+        // Logic to prevent dismissing on backdrop tap
+        document.getElementById('backdrop').addEventListener('click', (e) => {
+            // Shake effect on the bottom sheet to indicate it's not dismissible
+            const sheet = document.getElementById('bottomSheet');
+            sheet.classList.add('animate-shake');
+            setTimeout(() => sheet.classList.remove('animate-shake'), 400);
+        });
+
+        // CSS for the shake animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-4px); }
+                75% { transform: translateX(4px); }
+            }
+            .animate-shake {
+                animation: shake 0.2s cubic-bezier(.36,.07,.19,.97) both 2;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body></html>

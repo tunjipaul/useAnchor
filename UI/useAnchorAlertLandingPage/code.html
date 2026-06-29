@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Safety Alert | useAnchor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pulse-ring {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .5; transform: scale(1.05); }
+        }
+        .map-gradient {
+            background: linear-gradient(180deg, rgba(255,248,246,0) 0%, rgba(255,248,246,1) 100%);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#ff9c80",
+                        "tertiary-fixed-dim": "#86ceff",
+                        "surface": "#fff8f6",
+                        "on-tertiary-fixed-variant": "#004c6d",
+                        "surface-dim": "#efd4ce",
+                        "inverse-primary": "#ffb5a0",
+                        "on-surface": "#261814",
+                        "on-primary-fixed-variant": "#872100",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#fff8f6",
+                        "primary-container": "#cf4519",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#b02f00",
+                        "secondary-fixed-dim": "#ffb5a0",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#ffdbd1",
+                        "surface-container": "#ffe9e4",
+                        "inverse-on-surface": "#ffede8",
+                        "surface-container-high": "#fde2dc",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#78321d",
+                        "on-primary-container": "#fffbff",
+                        "secondary": "#954831",
+                        "primary-fixed": "#ffdbd1",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#3b0900",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#3d2d28",
+                        "surface-container-low": "#fff1ed",
+                        "on-primary-fixed": "#3b0900",
+                        "on-background": "#261814",
+                        "surface-variant": "#f7ddd6",
+                        "tertiary": "#00628c",
+                        "tertiary-container": "#007caf",
+                        "primary": "#ac2d00",
+                        "on-secondary-fixed-variant": "#77311c",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#ffb5a0",
+                        "outline-variant": "#e2bfb5",
+                        "on-surface-variant": "#5a413a",
+                        "background": "#fff8f6",
+                        "tertiary-fixed": "#c8e6ff",
+                        "outline": "#8e7068",
+                        "on-tertiary-fixed": "#001e2e",
+                        "on-tertiary-container": "#fcfcff",
+                        "surface-container-highest": "#f7ddd6",
+                        "alert-red": "#DC2626"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "16px",
+                        "3xl": "40px",
+                        "4xl": "48px",
+                        "sm": "8px",
+                        "xl": "24px",
+                        "2xl": "32px",
+                        "md": "12px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "label": ["Hanken Grotesk"],
+                        "h1": ["Hanken Grotesk"],
+                        "mono": ["JetBrains Mono"],
+                        "display": ["Hanken Grotesk"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "body": ["Hanken Grotesk"],
+                        "h2": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                        "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                        "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                        "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                        "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                        "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background min-h-screen text-on-surface">
+<!-- Top Alert Banner -->
+<div class="w-full bg-alert-red py-4 px-lg text-white shadow-lg sticky top-0 z-50 animate-pulse">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-white font-bold" style="font-variation-settings: 'FILL' 1;">warning</span>
+<div>
+<p class="font-label text-label uppercase tracking-wider opacity-90">SAFETY ALERT</p>
+<p class="font-body text-body font-semibold">This person may need your help</p>
+</div>
+</div>
+</div>
+<main class="max-w-[480px] mx-auto px-lg pt-xl pb-32 space-y-md">
+<!-- Person Section -->
+<div class="bg-surface-container-lowest rounded-xl p-xl shadow-sm border border-outline-variant flex items-center gap-xl">
+<div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-display text-h1 shadow-md">
+                J
+            </div>
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Jamie Sullivan</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Activated a safety alert at <span class="font-bold text-on-surface">21:42</span> from <span class="font-bold text-on-surface">Central Park North Entrance</span>.
+                </p>
+</div>
+</div>
+<!-- Session Details Card -->
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant">
+<div class="p-lg space-y-lg">
+<div class="flex items-start gap-md">
+<span class="material-symbols-outlined text-on-surface-variant mt-0.5">person_pin</span>
+<div>
+<p class="font-label text-label text-on-surface-variant">Meeting Participant</p>
+<p class="font-body text-body font-medium">Marketplace Seller (David)</p>
+</div>
+</div>
+<div class="flex items-start gap-md group cursor-pointer active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-on-surface-variant mt-0.5">location_on</span>
+<div class="flex-1">
+<p class="font-label text-label text-on-surface-variant">Meetup Location</p>
+<p class="font-body text-body font-medium">110th St &amp; 5th Ave, New York</p>
+<button class="mt-sm flex items-center gap-xs text-primary font-label text-label hover:underline">
+<span class="material-symbols-outlined text-[16px]">map</span>
+                            OPEN IN MAPS
+                        </button>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-lg">
+<div class="flex items-start gap-md">
+<span class="material-symbols-outlined text-on-surface-variant mt-0.5">schedule</span>
+<div>
+<p class="font-label text-label text-on-surface-variant">Started</p>
+<p class="font-body text-body font-medium">21:15</p>
+</div>
+</div>
+<div class="flex items-start gap-md">
+<span class="material-symbols-outlined text-on-surface-variant mt-0.5">timer_off</span>
+<div>
+<p class="font-label text-label text-on-surface-variant">Expected End</p>
+<p class="font-body text-body font-medium">21:45</p>
+</div>
+</div>
+</div>
+<div class="flex items-start gap-md pt-sm border-t border-outline-variant">
+<span class="material-symbols-outlined text-on-surface-variant mt-0.5">notes</span>
+<div>
+<p class="font-label text-label text-on-surface-variant">Notes</p>
+<p class="font-body-sm text-body-sm italic">"Wearing a blue jacket, meeting near the benches by the pond."</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Location Section -->
+<div class="space-y-sm">
+<div class="relative w-full h-[180px] rounded-xl overflow-hidden border border-outline-variant shadow-inner">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A highly detailed aerial satellite map view of a city park entrance at night. The map shows street grids, park paths, and a prominent glowing red pulse indicator pinpointing a specific location near a park bench. The visual style is clean, utility-focused, with high contrast labels and a modern interface aesthetic suitable for a safety monitoring application." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAlrSb2XDfBjOYRTKLRDIIox0HKe23UPThLEkqSwWlHC8XQSa-FZdbzdR0iivC2PIFaJLmbNwaomVyoAXRKjNWkDk7PJDf5GgCQ2V9I3RBZPRIAsrwU-MV0B3vitguYsExYmoanyTp5uoHTlfbWXk0wrFNRganWb32_rTxELXIiwrjS-VKu2HcBIVpJHvIWsFqfLbHqSOF3DXBwrjTeu2qhKDulSqp7twjFljWgI6JkarSbZBtQw1-cfoN3CyBPj07aJgMgB_8ETl4')"></div>
+<div class="absolute inset-0 map-gradient flex flex-col justify-end p-lg">
+<div class="flex items-center justify-between">
+<span class="bg-white/90 backdrop-blur px-sm py-xs rounded-full font-label text-label text-on-surface border border-outline-variant">
+                            Live Tracking Active
+                        </span>
+<div class="w-3 h-3 bg-error rounded-full pulse-ring"></div>
+</div>
+</div>
+</div>
+<button class="w-full h-4xl bg-primary text-white rounded-lg font-h2 flex items-center justify-center gap-md active:scale-95 transition-all shadow-md">
+<span class="material-symbols-outlined">directions</span>
+                Get Directions
+            </button>
+</div>
+<!-- Actions Section -->
+<div class="grid grid-cols-1 gap-md pt-lg">
+<button class="w-full h-4xl bg-primary text-white rounded-lg font-h2 flex items-center justify-center gap-md active:scale-95 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">call</span>
+                Call Jamie Sullivan
+            </button>
+<button class="w-full h-4xl border-2 border-primary text-primary rounded-lg font-h2 flex items-center justify-center gap-md active:bg-primary/5 transition-all">
+<span class="material-symbols-outlined">visibility</span>
+                View Live Location
+            </button>
+</div>
+<!-- Footer -->
+<footer class="pt-2xl pb-xl text-center space-y-md">
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Sent by <span class="font-bold text-on-surface">useAnchor</span> · For emergencies call <span class="font-bold text-error">112</span>
+</p>
+<div class="flex items-center justify-center gap-sm opacity-50 grayscale">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">shield</span>
+<span class="font-h1 text-h1 font-bold text-primary tracking-tight">useAnchor</span>
+</div>
+</footer>
+</main>
+<!-- Micro-interaction for simulated real-time update -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Subtle pulse interaction for the map ping
+            const pings = document.querySelectorAll('.pulse-ring');
+            pings.forEach(ping => {
+                setInterval(() => {
+                    ping.style.transform = 'scale(1.2)';
+                    setTimeout(() => ping.style.transform = 'scale(1)', 300);
+                }, 3000);
+            });
+
+            // Interaction for map button
+            const mapBtn = document.querySelector('button:has(span:contains("map"))');
+            if(mapBtn) {
+                mapBtn.addEventListener('click', () => {
+                    console.log('Redirecting to native maps application...');
+                });
+            }
+        });
+    </script>
+</body></html>

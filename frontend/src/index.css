@@ -126,3 +126,52 @@ textarea:disabled {
   opacity: 1 !important;
 }
 
+@layer utilities {
+  .timeline-line {
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #E4E2DB;
+    z-index: 0;
+  }
+  .node-pulse {
+    animation: node-pulse 2s infinite;
+
+
+@layer utilities {
+  .timeline-line {
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #E4E2DB;
+    z-index: 0;
+  }
+  .node-pulse {
+    animation: node-pulse 2s infinite;
+  }
+  @keyframes node-pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(186, 26, 26, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
+  }
+  .custom-card-shadow {
+    box-shadow: 0px 2px 4px rgba(26, 26, 24, 0.05);
+  }
+
+  /* Custom Toggle Style */
+  .toggle-checkbox:checked {
+    right: 0;
+    border-color: #ac2d00;
+  }
+  .toggle-checkbox:checked + .toggle-label {
+    background-color: #ac2d00;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Active Session | Safety Guard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Theme Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-tertiary-fixed-variant": "#004c6d",
+                "surface": "#fff8f6",
+                "inverse-primary": "#ffb5a0",
+                "surface-dim": "#efd4ce",
+                "on-primary-fixed-variant": "#872100",
+                "on-surface": "#261814",
+                "secondary-container": "#ff9c80",
+                "tertiary-fixed-dim": "#86ceff",
+                "on-primary": "#ffffff",
+                "secondary-fixed": "#ffdbd1",
+                "surface-container": "#ffe9e4",
+                "inverse-on-surface": "#ffede8",
+                "surface-container-high": "#fde2dc",
+                "on-secondary": "#ffffff",
+                "on-secondary-container": "#78321d",
+                "surface-container-lowest": "#ffffff",
+                "surface-bright": "#fff8f6",
+                "primary-container": "#cf4519",
+                "on-tertiary": "#ffffff",
+                "secondary-fixed-dim": "#ffb5a0",
+                "surface-tint": "#b02f00",
+                "inverse-surface": "#3d2d28",
+                "on-primary-fixed": "#3b0900",
+                "surface-container-low": "#fff1ed",
+                "on-background": "#261814",
+                "surface-variant": "#f7ddd6",
+                "tertiary": "#00628c",
+                "primary": "#ac2d00",
+                "tertiary-container": "#007caf",
+                "on-secondary-fixed-variant": "#77311c",
+                "error-container": "#ffdad6",
+                "on-primary-container": "#fffbff",
+                "secondary": "#954831",
+                "primary-fixed": "#ffdbd1",
+                "on-error": "#ffffff",
+                "on-error-container": "#93000a",
+                "on-secondary-fixed": "#3b0900",
+                "error": "#ba1a1a",
+                "outline-variant": "#e2bfb5",
+                "on-surface-variant": "#5a413a",
+                "background": "#fff8f6",
+                "tertiary-fixed": "#c8e6ff",
+                "outline": "#8e7068",
+                "on-tertiary-container": "#fcfcff",
+                "on-tertiary-fixed": "#001e2e",
+                "surface-container-highest": "#f7ddd6",
+                "primary-fixed-dim": "#ffb5a0"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "4xl": "48px",
+                "sm": "8px",
+                "lg": "16px",
+                "3xl": "40px",
+                "xs": "4px",
+                "xl": "24px",
+                "2xl": "32px",
+                "md": "12px"
+            },
+            "fontFamily": {
+                "mono": ["JetBrains Mono"],
+                "h1": ["Hanken Grotesk"],
+                "label": ["Hanken Grotesk"],
+                "h2": ["Hanken Grotesk"],
+                "body": ["Hanken Grotesk"],
+                "body-sm": ["Hanken Grotesk"],
+                "display": ["Hanken Grotesk"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 0.4; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+
+        .animate-sos-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        .safe-glow {
+            box-shadow: 0 0 15px rgba(172, 45, 0, 0.1);
+        }
+        
+        body {
+            max-width: 390px;
+            margin: 0 auto;
+            background-color: #fff8f6;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body text-on-surface antialiased">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-50 bg-surface border-b border-outline-variant flex justify-between items-center w-full px-lg h-4xl">
+<div class="flex items-center gap-md">
+<button class="w-10 h-10 flex items-center justify-center hover:opacity-80 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<h1 class="font-h1 text-h1">Active Session</h1>
+</div>
+<div class="flex items-center gap-xs px-md py-1 bg-primary-container/10 border border-primary-container/20 rounded-full">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<span class="font-label text-label text-primary">LIVE</span>
+</div>
+</header>
+<main class="px-lg py-xl pb-32 space-y-xl">
+<!-- Session Context Card -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg safe-glow">
+<div class="flex justify-between items-start mb-md">
+<div>
+<h2 class="font-h2 text-h2 text-on-surface">Evening Commute</h2>
+<div class="flex items-center gap-xs text-on-surface-variant mt-1">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="font-body-sm text-body-sm">Central Station → Home</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-label text-label text-on-surface-variant uppercase tracking-wider block">Estimated Arrival</span>
+<span class="font-h2 text-h2 text-primary">22:45</span>
+</div>
+</div>
+<div class="pt-md border-t border-outline-variant flex items-center justify-between">
+<span class="font-label text-label text-on-surface-variant">Contacts Notified:</span>
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-cover bg-center" data-alt="Close-up portrait of a professional woman in her 30s with a warm, reassuring smile. She has dark hair and wears business casual attire against a blurred soft-focus office background. The lighting is warm and natural, suggesting a reliable and supportive emergency contact persona for a safety application." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAV_Jxxm3Wu-KZK6HAMyuxwjyimR_TJEaO3qE21I9KC3p-4rzr3YryDn1WUUTCoxA7fJTZ5-8LlJQvAuvviBzZlk2kGEpvz485KgmztwwSSeX-BAqHLVvVPeXX1a9e3PBiSBW0Qq75TIGx08BoTU8zYb4ORJ4LwdGk-0Z242E5HVFPh0LY6tqkGXes8SX3sVIDz-kIdyTDlX054yK6aE9KoQI6bCsjoPpkpHGmrefm7vjIcin05SJ41gbxCzb5CkclyhO_-rcmqDjo')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-cover bg-center" data-alt="Portrait of an older man with graying hair and kind eyes, looking directly at the camera. He is wearing a simple blue shirt. The setting is a quiet, brightly lit living room with soft daylight. The image conveys a sense of family, trust, and experienced guardianship." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCkIu3pnBctdiS7jVtkiokTE0Jk0D1ithcQR7hjxMjHo8lStDnciv2CA_smvHCNqbXKTEMqzY14ULl5bQl-6kHbinf4Z4hy1xyvufjqm7sZfKgylgjXVjCWti78OiScBgdUhOBLsdnftfjW6OO4To9ERAUH66u0prTuQMmynZzN5N5zfQVF1ISAIXOWHcBaaUEDTA1LJxdBk3DJP9xILrt4oLn-zfMbH3Xe0gBYVoiKQkrHywgalbNPDxTdA6uAAHQarI8pb6ND7OU')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-primary-container flex items-center justify-center font-bold text-white text-[10px]">+2</div>
+</div>
+</div>
+</section>
+<!-- Circular Countdown Section -->
+<section class="flex flex-col items-center justify-center py-xl relative">
+<!-- Animated Background Glow -->
+<div class="absolute inset-0 flex items-center justify-center -z-10">
+<div class="w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+</div>
+<div class="relative w-[240px] h-[240px] flex items-center justify-center">
+<!-- SVG Progress Ring -->
+<svg class="absolute inset-0 w-full h-full" viewbox="0 0 100 100">
+<circle class="text-surface-variant stroke-current" cx="50" cy="50" fill="transparent" r="44" stroke-width="6"></circle>
+<circle class="text-primary stroke-current progress-ring-circle" cx="50" cy="50" fill="transparent" r="44" stroke-linecap="round" stroke-width="6" style="stroke-dasharray: 276.46; stroke-dashoffset: 80;"></circle>
+</svg>
+<div class="text-center">
+<span class="block font-mono text-[48px] font-bold leading-none tracking-tighter text-on-surface">28:14</span>
+<span class="block font-label text-label text-on-surface-variant mt-2">UNTIL NEXT CHECK-IN</span>
+</div>
+</div>
+</section>
+<!-- Primary Actions -->
+<section class="grid grid-cols-2 gap-md">
+<button class="col-span-2 h-4xl bg-[#2D6A4F] text-white rounded-lg font-h2 flex items-center justify-center gap-sm active:scale-95 transition-all shadow-sm">
+<span class="material-symbols-outlined">check_circle</span>
+                I'm Safe
+            </button>
+<button class="h-4xl bg-surface-container border border-outline-variant text-on-surface rounded-lg font-h2 flex items-center justify-center gap-sm active:scale-95 transition-all">
+<span class="material-symbols-outlined">add_home</span>
+                Extend
+            </button>
+<button class="h-4xl bg-surface-container-low border border-outline-variant text-on-surface-variant rounded-lg font-h2 flex items-center justify-center gap-sm active:scale-95 transition-all">
+<span class="material-symbols-outlined">close</span>
+                End
+            </button>
+</section>
+</main>
+<!-- Persistent Session Bar / SOS Anchor -->
+<footer class="fixed bottom-0 left-0 w-full bg-surface/95 backdrop-blur-md border-t border-outline-variant px-lg pt-xl pb-10 z-50 flex flex-col items-center">
+<!-- SOS Pulsing Ring Container -->
+<div class="relative mb-4">
+<!-- Pulsing Rings -->
+<div class="absolute inset-0 rounded-full bg-error/20 animate-sos-pulse scale-150"></div>
+<div class="absolute inset-0 rounded-full bg-error/10 animate-sos-pulse delay-700 scale-[2]"></div>
+<!-- Hold for SOS Button -->
+<button class="relative w-[342px] h-4xl bg-error text-white rounded-full font-h1 flex items-center justify-center gap-md active:scale-95 transition-all shadow-lg overflow-hidden" id="sos-btn">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">emergency</span>
+                HOLD FOR SOS
+                
+                <!-- Interaction Fill Effect (Simulated) -->
+<div class="absolute left-0 bottom-0 top-0 bg-white/20 w-0 transition-all duration-[3000ms] ease-linear" id="sos-fill"></div>
+</button>
+</div>
+<p class="font-label text-label text-on-surface-variant opacity-70">Release to cancel SOS alert</p>
+</footer>
+<script>
+        const sosBtn = document.getElementById('sos-btn');
+        const sosFill = document.getElementById('sos-fill');
+        let sosTimer;
+
+        sosBtn.addEventListener('mousedown', startSos);
+        sosBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startSos(); });
+
+        window.addEventListener('mouseup', cancelSos);
+        window.addEventListener('touchend', cancelSos);
+
+        function startSos() {
+            sosFill.style.width = '100%';
+            sosTimer = setTimeout(() => {
+                alert('SOS ALERT TRIGGERED! Notifying emergency contacts and local authorities...');
+                cancelSos();
+            }, 3000);
+        }
+
+        function cancelSos() {
+            clearTimeout(sosTimer);
+            sosFill.style.width = '0%';
+        }
+
+        // Simple Countdown logic simulation
+        let timeLeft = 28 * 60 + 14;
+        const countdownEl = document.querySelector('.font-mono');
+        const progressRing = document.querySelector('.progress-ring-circle');
+        const totalTime = 30 * 60;
+
+        setInterval(() => {
+            if(timeLeft > 0) {
+                timeLeft--;
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                countdownEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                // Update Progress Ring
+                const offset = 276.46 - (timeLeft / totalTime) * 276.46;
+                progressRing.style.strokeDashoffset = offset;
+            }
+        }, 1000);
+    </script>
+</body></html>

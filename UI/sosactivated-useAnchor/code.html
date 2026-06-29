@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SOS Activated - ShieldSafe</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#ff9c80",
+                    "tertiary-fixed-dim": "#86ceff",
+                    "surface": "#fff8f6",
+                    "on-tertiary-fixed-variant": "#004c6d",
+                    "surface-dim": "#efd4ce",
+                    "inverse-primary": "#ffb5a0",
+                    "on-surface": "#261814",
+                    "on-primary-fixed-variant": "#872100",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#fff8f6",
+                    "primary-container": "#cf4519",
+                    "on-tertiary": "#ffffff",
+                    "surface-tint": "#b02f00",
+                    "secondary-fixed-dim": "#ffb5a0",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#ffdbd1",
+                    "surface-container": "#ffe9e4",
+                    "inverse-on-surface": "#ffede8",
+                    "surface-container-high": "#fde2dc",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-container": "#78321d",
+                    "on-primary-container": "#fffbff",
+                    "secondary": "#954831",
+                    "primary-fixed": "#ffdbd1",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed": "#3b0900",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#3d2d28",
+                    "surface-container-low": "#fff1ed",
+                    "on-primary-fixed": "#3b0900",
+                    "on-background": "#261814",
+                    "surface-variant": "#f7ddd6",
+                    "tertiary": "#00628c",
+                    "tertiary-container": "#007caf",
+                    "primary": "#ac2d00",
+                    "on-secondary-fixed-variant": "#77311c",
+                    "error-container": "#ffdad6",
+                    "primary-fixed-dim": "#ffb5a0",
+                    "outline-variant": "#e2bfb5",
+                    "on-surface-variant": "#5a413a",
+                    "background": "#fff8f6",
+                    "tertiary-fixed": "#c8e6ff",
+                    "outline": "#8e7068",
+                    "on-tertiary-fixed": "#001e2e",
+                    "on-tertiary-container": "#fcfcff",
+                    "surface-container-highest": "#f7ddd6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "16px",
+                    "3xl": "40px",
+                    "4xl": "48px",
+                    "sm": "8px",
+                    "xl": "24px",
+                    "2xl": "32px",
+                    "md": "12px",
+                    "xs": "4px"
+            },
+            "fontFamily": {
+                    "label": ["Hanken Grotesk"],
+                    "h1": ["Hanken Grotesk"],
+                    "mono": ["JetBrains Mono"],
+                    "display": ["Hanken Grotesk"],
+                    "body-sm": ["Hanken Grotesk"],
+                    "body": ["Hanken Grotesk"],
+                    "h2": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                    "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                    "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                    "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                    "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        @keyframes pulse-ring {
+            0% { transform: scale(.33); opacity: 0.8; }
+            80%, 100% { transform: scale(1.5); opacity: 0; }
+        }
+        @keyframes pulse-icon {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        }
+        .animate-pulse-icon {
+            animation: pulse-icon 1s ease-in-out infinite;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #FEF2F2; /* Emergency danger surface */
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body text-on-surface overflow-x-hidden min-h-screen flex flex-col">
+<!-- SOS Header Area -->
+<header class="flex flex-col items-center justify-center pt-3xl px-lg pb-xl text-center">
+<div class="relative mb-lg">
+<!-- Pulsing Rings -->
+<div class="absolute inset-0 bg-error/30 rounded-full animate-pulse-ring"></div>
+<div class="absolute inset-0 bg-error/20 rounded-full animate-pulse-ring delay-700"></div>
+<!-- Main Alert Icon -->
+<div class="relative bg-error text-white w-[80px] h-[80px] rounded-full flex items-center justify-center shadow-lg animate-pulse-icon">
+<span class="material-symbols-outlined text-[48px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+</div>
+<h1 class="font-display text-display text-error mb-sm">SOS Alert Sent</h1>
+<p class="font-body text-body text-on-surface max-w-[300px]">
+            Your trusted contacts have been notified with your location and session details.
+        </p>
+</header>
+<!-- Status List Card -->
+<main class="flex-1 px-lg space-y-xl pb-32">
+<section class="bg-white rounded-xl p-lg shadow-[0px_2px_4px_rgba(26,26,24,0.05)] border border-outline-variant">
+<div class="flex flex-col space-y-md">
+<!-- Item 1 -->
+<div class="flex items-center justify-between py-xs border-b border-surface-container">
+<div class="flex items-center space-x-md">
+<span class="material-symbols-outlined text-on-surface-variant">notifications_active</span>
+<span class="font-body text-body">Contacts notified</span>
+</div>
+<span class="bg-[#D1FAE5] text-[#065F46] px-sm py-[2px] rounded-full font-label text-label">Sent</span>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center justify-between py-xs border-b border-surface-container">
+<div class="flex items-center space-x-md">
+<span class="material-symbols-outlined text-on-surface-variant">location_on</span>
+<span class="font-body text-body">Location shared</span>
+</div>
+<div class="flex items-center space-x-xs">
+<div class="w-2 h-2 bg-[#10B981] rounded-full animate-pulse"></div>
+<span class="text-[#065F46] font-label text-label">Active</span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="flex items-center justify-between py-xs border-b border-surface-container">
+<div class="flex items-center space-x-md">
+<span class="material-symbols-outlined text-on-surface-variant">schedule</span>
+<span class="font-body text-body">Alert timestamp</span>
+</div>
+<span class="font-mono text-mono text-on-surface-variant">22:45:03 GMT-5</span>
+</div>
+<!-- Item 4 -->
+<div class="flex items-center justify-between py-xs">
+<div class="flex items-center space-x-md">
+<span class="material-symbols-outlined text-on-surface-variant">shield</span>
+<span class="font-body text-body">Session details attached</span>
+</div>
+<span class="bg-[#D1FAE5] text-[#065F46] px-sm py-[2px] rounded-full font-label text-label">Sent</span>
+</div>
+</div>
+</section>
+<!-- Who was notified -->
+<section>
+<h2 class="font-h2 text-h2 mb-md text-on-surface px-xs">Who was notified</h2>
+<div class="flex overflow-x-auto pb-sm space-x-md scrollbar-hide -mx-lg px-lg">
+<!-- Contact Card 1 -->
+<div class="flex-shrink-0 w-32 bg-white p-md rounded-xl border border-outline-variant text-center">
+<div class="w-12 h-12 mx-auto rounded-full mb-sm bg-cover bg-center border-2 border-primary-container" data-alt="Close up portrait of a middle aged man with glasses and a kind expression, soft warm lighting, modern professional photography style, corporate headshot look." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA1gQtRZk6cJ6XK7DSGdwFRxGAEXMYBLkZ_N19IqwYT8Rij1enbq8SsjQ1P9K7BbSkVz4laLgagJF12baFW2PcG_eMt5_y8hS-bfE_XX0SmSsqbsymZAUMMuNjGFSViYZLapJFXsS8c_v1W99xiNNxqd9eeLooMVJ_UoHfypa0mJo7ln5igPTFCLX-5nDMmEMOzMAOYWGsmfni2zU3wztQxnUcFJWpRfmyHqJtXdLkR42jbiK_2EckfIYVPdXCtPGprQ_uaYqwtmyw')"></div>
+<p class="font-label text-body-sm font-bold truncate">Marcus Thorne</p>
+<span class="mt-xs inline-block bg-tertiary-fixed text-on-tertiary-fixed px-xs py-[2px] rounded text-[10px] uppercase font-bold tracking-wider">SMS</span>
+</div>
+<!-- Contact Card 2 -->
+<div class="flex-shrink-0 w-32 bg-white p-md rounded-xl border border-outline-variant text-center">
+<div class="w-12 h-12 mx-auto rounded-full mb-sm bg-cover bg-center border-2 border-primary-container" data-alt="Portrait of a young woman with curly hair smiling, high contrast studio lighting with a clean light grey background, vibrant and focused aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB6b0D5jcBkBEU8aI1VUkcThHogEZN5-iMgVF5hW1iVh5IeUggZcevYxbD_KJ-mmnGHxUNIhjNWxxoWe_sbQYlRL_PmTPCr7e8gNHAqC6BusPVf-6EysaHnDuU5-619iW9ByHKe8XH6NthHSpkvrrePdZmA2-K6r6hRz5dJa1pP-Cp07zY9gKZSmMR_pW0ZeahyY9w9EXvHKQ6xWVT1Kft0Rtfy9Z2QikT3jNJnAJqouhRe9x6ZoobNh8Cy2eU5gA2DjaaaV9gFKE4')"></div>
+<p class="font-label text-body-sm font-bold truncate">Sarah Jenkins</p>
+<span class="mt-xs inline-block bg-primary-fixed text-on-primary-fixed px-xs py-[2px] rounded text-[10px] uppercase font-bold tracking-wider">Push</span>
+</div>
+<!-- Contact Card 3 -->
+<div class="flex-shrink-0 w-32 bg-white p-md rounded-xl border border-outline-variant text-center">
+<div class="w-12 h-12 mx-auto rounded-full mb-sm bg-cover bg-center border-2 border-primary-container" data-alt="Portrait of an older man with white hair and beard, wearing a tactical security uniform, sharp focus, dramatic warm backlighting, high reliability vibe." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBobOIldXqn1-n19UPSyyk0KgFUM3f7u-7dd6izlep4wY9Y8PkmB2rVgWC54hkRFbYnh6MYRUMFJD5Vbkv_pkI1ZDwwSqEy-Tu7-s9DiMLNqMuYCAEFs0loo61xTxBGzgMz2_PmYW3Bh7NoWoM0rdN9A3MGlnZVLJQITWZxBlDIt0QcvBbg5JmhzOYJhhWDlOOCAhibZonAHTEJ3tX_6K3-51FmJyBoHs5ZfExL5WtfJLGI5QLfYHKtNpEBOBalPMB6NzmnNeQDITk')"></div>
+<p class="font-label text-body-sm font-bold truncate">Chief Miller</p>
+<span class="mt-xs inline-block bg-tertiary-fixed text-on-tertiary-fixed px-xs py-[2px] rounded text-[10px] uppercase font-bold tracking-wider">SMS</span>
+</div>
+</div>
+</section>
+<!-- Action Buttons -->
+<section class="flex flex-col space-y-md pt-md">
+<button class="w-full h-4xl border-2 border-[#10B981] rounded-lg flex items-center justify-center space-x-sm bg-white text-[#065F46] font-h2 active:scale-95 transition-transform hover:bg-[#F0FDF4]">
+<span class="material-symbols-outlined">call</span>
+<span>Call Marcus</span>
+</button>
+<button class="w-full h-4xl border-2 border-on-surface-variant rounded-lg flex items-center justify-center space-x-sm bg-white text-on-surface font-h2 active:scale-95 transition-transform hover:bg-surface-container-low">
+<span class="material-symbols-outlined">check_circle</span>
+<span>I'm Safe Now — End Alert</span>
+</button>
+</section>
+</main>
+<!-- Persistent Bottom Strip -->
+<div class="fixed bottom-0 left-0 w-full bg-[#FEE2E2] border-t border-error/20 py-sm text-center">
+<p class="font-label text-label font-bold text-error uppercase tracking-widest flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+            SOS is active. Do not close this screen.
+        </p>
+</div>
+<script>
+        // Subtle interaction: timestamp update
+        const updateTime = () => {
+            const now = new Date();
+            const timestampElements = document.querySelectorAll('.font-mono');
+            timestampElements.forEach(el => {
+                // In a real app we'd keep the initial alert time, but for UI demo:
+                // el.textContent = now.toLocaleTimeString() + ' GMT-5';
+            });
+        };
+        setInterval(updateTime, 1000);
+
+        // Simple haptic-like feedback on buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('touchstart', () => {
+                if (window.navigator.vibrate) window.navigator.vibrate(10);
+            });
+        });
+    </script>
+</body></html>

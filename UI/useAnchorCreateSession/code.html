@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Anchor - Create Session</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#004c6d",
+                    "surface": "#fff8f6",
+                    "inverse-primary": "#ffb5a0",
+                    "surface-dim": "#efd4ce",
+                    "on-primary-fixed-variant": "#872100",
+                    "on-surface": "#261814",
+                    "secondary-container": "#ff9c80",
+                    "tertiary-fixed-dim": "#86ceff",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#ffdbd1",
+                    "surface-container": "#ffe9e4",
+                    "inverse-on-surface": "#ffede8",
+                    "surface-container-high": "#fde2dc",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-container": "#78321d",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#fff8f6",
+                    "primary-container": "#cf4519",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed-dim": "#ffb5a0",
+                    "surface-tint": "#b02f00",
+                    "inverse-surface": "#3d2d28",
+                    "on-primary-fixed": "#3b0900",
+                    "surface-container-low": "#fff1ed",
+                    "on-background": "#261814",
+                    "surface-variant": "#f7ddd6",
+                    "tertiary": "#00628c",
+                    "primary": "#ac2d00",
+                    "tertiary-container": "#007caf",
+                    "on-secondary-fixed-variant": "#77311c",
+                    "error-container": "#ffdad6",
+                    "on-primary-container": "#fffbff",
+                    "secondary": "#954831",
+                    "primary-fixed": "#ffdbd1",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed": "#3b0900",
+                    "error": "#ba1a1a",
+                    "outline-variant": "#e2bfb5",
+                    "on-surface-variant": "#5a413a",
+                    "background": "#fff8f6",
+                    "tertiary-fixed": "#c8e6ff",
+                    "outline": "#8e7068",
+                    "on-tertiary-container": "#fcfcff",
+                    "on-tertiary-fixed": "#001e2e",
+                    "surface-container-highest": "#f7ddd6",
+                    "primary-fixed-dim": "#ffb5a0"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "4xl": "48px",
+                    "sm": "8px",
+                    "lg": "16px",
+                    "3xl": "40px",
+                    "xs": "4px",
+                    "xl": "24px",
+                    "2xl": "32px",
+                    "md": "12px"
+            },
+            "fontFamily": {
+                    "mono": ["JetBrains Mono"],
+                    "h1": ["Hanken Grotesk"],
+                    "label": ["Hanken Grotesk"],
+                    "h2": ["Hanken Grotesk"],
+                    "body": ["Hanken Grotesk"],
+                    "body-sm": ["Hanken Grotesk"],
+                    "display": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                    "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                    "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                    "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}],
+                    "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                    "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fff8f6;
+            color: #261814;
+            font-family: 'Hanken Grotesk', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .step-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hidden-step {
+            display: none;
+            opacity: 0;
+            transform: translateX(10px);
+        }
+        .active-step {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .custom-input {
+            appearance: none;
+            outline: none;
+            border: 1px solid #e2bfb5;
+            transition: border-color 0.2s ease;
+        }
+        .custom-input:focus {
+            border-color: #ac2d00;
+            box-shadow: 0 0 0 1px #ac2d00;
+        }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(172, 45, 0, 0.4);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(172, 45, 0, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(172, 45, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(172, 45, 0, 0); }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex justify-center items-start min-h-screen">
+<!-- Mobile Container (390px) -->
+<div class="w-full max-w-[390px] min-h-screen bg-background relative flex flex-col">
+<!-- Header -->
+<header class="flex justify-between items-center px-lg h-4xl bg-surface border-b border-outline-variant">
+<button class="w-10 h-10 flex items-center justify-start hover:opacity-80 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-on-surface">close</span>
+</button>
+<div class="flex flex-col items-center">
+<span class="font-label text-label text-on-surface-variant" id="step-indicator">Step 1 of 3</span>
+</div>
+<div class="w-10"></div> <!-- Spacer for symmetry -->
+</header>
+<!-- Content Area -->
+<main class="flex-1 px-lg py-xl">
+<!-- Step 1: Meeting Details -->
+<section class="step-transition active-step space-y-xl" id="step-1">
+<div class="space-y-xs">
+<h1 class="font-display text-display text-on-surface">Meeting Details</h1>
+<p class="font-body text-body text-on-surface-variant">Tell us who you're meeting and where.</p>
+</div>
+<div class="space-y-lg">
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase tracking-wider">Session Title</label>
+<input class="w-full h-4xl px-md bg-surface-container-lowest custom-input rounded-lg font-body text-body" placeholder="e.g. Marketplace Pickup" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase tracking-wider">Person's Name</label>
+<input class="w-full h-4xl px-md bg-surface-container-lowest custom-input rounded-lg font-body text-body" placeholder="Optional" type="text"/>
+</div>
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase tracking-wider">Phone</label>
+<input class="w-full h-4xl px-md bg-surface-container-lowest custom-input rounded-lg font-body text-body" placeholder="Optional" type="tel"/>
+</div>
+</div>
+<div class="space-y-sm pt-md border-t border-outline-variant">
+<h2 class="font-h2 text-h2 text-on-surface">Where and when?</h2>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-primary">location_on</span>
+<input class="w-full h-4xl pl-xl pr-md bg-surface-container-lowest custom-input rounded-lg font-body text-body" placeholder="Set meeting location" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<input class="w-full h-4xl px-md bg-surface-container-lowest custom-input rounded-lg font-body text-body" type="date"/>
+<input class="w-full h-4xl px-md bg-surface-container-lowest custom-input rounded-lg font-body text-body" type="time"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Step 2: Contacts & Notes -->
+<section class="step-transition hidden-step space-y-xl" id="step-2">
+<div class="space-y-xs">
+<h1 class="font-display text-display text-on-surface">Safety Circle</h1>
+<p class="font-body text-body text-on-surface-variant">Select contacts to monitor this session.</p>
+</div>
+<div class="space-y-lg">
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase tracking-wider">Trusted Contacts</label>
+<div class="flex flex-wrap gap-sm">
+<button class="px-md py-sm bg-surface-container-high text-on-surface-variant rounded-full border border-outline-variant font-body-sm flex items-center gap-xs transition-all active:scale-95" onclick="toggleChip(this)">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                                Sarah Jenkins
+                            </button>
+<button class="px-md py-sm bg-primary-container text-on-primary-container rounded-full border border-primary font-body-sm flex items-center gap-xs transition-all active:scale-95" onclick="toggleChip(this)">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                                David Chen
+                                <span class="material-symbols-outlined text-[16px]">check_circle</span>
+</button>
+<button class="px-md py-sm bg-surface-container-high text-on-surface-variant rounded-full border border-outline-variant font-body-sm flex items-center gap-xs transition-all active:scale-95" onclick="toggleChip(this)">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                                Marcus Miller
+                            </button>
+<button class="px-md py-sm bg-surface-container-lowest text-primary rounded-full border border-primary border-dashed font-body-sm flex items-center gap-xs hover:bg-primary-fixed-dim transition-all">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                                Add new contact
+                            </button>
+</div>
+</div>
+<div class="space-y-sm pt-md">
+<label class="font-label text-label text-on-surface-variant uppercase tracking-wider">Session Notes</label>
+<textarea class="w-full min-h-[120px] p-md bg-surface-container-lowest custom-input rounded-lg font-body text-body resize-none" placeholder="e.g. Meeting at the red cafe near the entrance. I'm wearing a blue jacket."></textarea>
+<p class="text-label font-label text-on-surface-variant italic">Notes are only shared with contacts if an alert is triggered.</p>
+</div>
+</div>
+</section>
+<!-- Step 3: Review -->
+<section class="step-transition hidden-step space-y-xl" id="step-3">
+<div class="space-y-xs">
+<h1 class="font-display text-display text-on-surface">Final Review</h1>
+<p class="font-body text-body text-on-surface-variant">Verify details before starting the anchor.</p>
+</div>
+<!-- Review Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm space-y-lg">
+<div class="flex justify-between items-start">
+<div class="space-y-xs">
+<h3 class="font-h2 text-h2 text-on-surface">Marketplace Pickup</h3>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="font-body-sm">Coffee House, 4th Ave</span>
+</div>
+</div>
+<div class="bg-primary-fixed-dim text-on-primary-fixed-variant px-sm py-xs rounded font-label text-[10px] uppercase font-bold tracking-tighter">Verified</div>
+</div>
+<div class="grid grid-cols-2 gap-lg border-t border-outline-variant pt-lg">
+<div class="space-y-xs">
+<span class="font-label text-label text-on-surface-variant">PERSON</span>
+<p class="font-body text-body text-on-surface">Alex Rivera</p>
+</div>
+<div class="space-y-xs">
+<span class="font-label text-label text-on-surface-variant">SCHEDULED</span>
+<p class="font-body text-body text-on-surface">Today, 2:30 PM</p>
+</div>
+</div>
+<div class="space-y-sm pt-md">
+<span class="font-label text-label text-on-surface-variant">TRUSTED CONTACTS (2)</span>
+<div class="flex -space-x-2">
+<div class="w-10 h-10 rounded-full border-2 border-surface bg-cover bg-center" data-alt="A close-up portrait of a friendly woman with dark curly hair and glasses, smiling warmly against a soft-focus outdoor park background, warm golden hour lighting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC0XAtUoG-NICXp0MdrIDLjr-lJRx0tdxNx7mOEJteJkBPSMXfgKpzwn4GG5VACRwZRoKNMUWA4lHUf9MUts6VnAGFawKU7p9DN_Axrgi3Ogq4gixy6J4kWn1_ZioCd5eml5zXPcQ5A8dmAQD0uKTfCr9a8-_f8YBmo4zqZGYJzpa75-6a0N02HhKQjr3jIJdWx5UqF380a48GqeAp4xfTqGxjXPpBNg8hrKqGxceIXKiGG0wE0ykkVxjZtGoScKlKZ4LDuxQGVfrM')"></div>
+<div class="w-10 h-10 rounded-full border-2 border-surface bg-cover bg-center" data-alt="A portrait of a young man with a short beard and professional appearance, wearing a neutral grey sweater, studio lighting with a clean off-white background, looking calm and reliable." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD5SMzNYC9FrPEt6RymcfLaMRC3QJLbKy_pxaLFO7S3M9FKFKriAR40V-xJKm1mXBwKk6z6TEt8g8xIlhPqe__TMCXy3hRGnaoUyb2UUyStTiI9pnRanFZEGHaoL6hpo9pGuTlvBSpythlnv-q7C_vt8bbWSdbv4A99QPsg2aXcWL3IxrP7ZemyNFTbD_6kfkx4d0eRcQos4KKKA-EnBQBoqPLiLE1sTPE3pJjcsyhTXAeqneISeYFIEqytdpbE7Q9RdC5B5hUqxTU')"></div>
+<div class="w-10 h-10 rounded-full border-2 border-surface bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-label text-label">+1</div>
+</div>
+</div>
+</div>
+<!-- Map Preview (Contextual Identity) -->
+<div class="h-32 w-full rounded-xl overflow-hidden border border-outline-variant relative">
+<div class="absolute inset-0 bg-cover bg-center grayscale opacity-40" data-location="San Francisco" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD-1e2_Mhl9Ofyq02LOy6VxnJargk74froU5v3WcxAov-qvYiWk1uw1xIm8lPX1WgR69o--jEgOImqMZcv_J0U8p0pUU9ogw0MqzS2RnGIcKF9AQRwO0RVxeeheoeHLxtE8uUcJAiLR78ljJKV-8k-X5z2ADsGJcjKhzC6bn4t0Ztxp0Jwad6YV2oa3cBCyaK7FBUTB-G_Ec7KSOih-NiBjt1LWADlwYopzmeW1gj2EY3tBLf87iZ4IgD-uR0LdBJtLctZ8V6NCzOs')"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-6 h-6 bg-primary rounded-full pulse-ring flex items-center justify-center">
+<div class="w-2 h-2 bg-white rounded-full"></div>
+</div>
+</div>
+<div class="absolute bottom-2 left-2 bg-surface/80 backdrop-blur-sm px-xs py-xs rounded font-label text-[10px] text-on-surface-variant">PREVIEW LOCATION</div>
+</div>
+</section>
+</main>
+<!-- Footer Actions -->
+<footer class="p-lg bg-surface space-y-md">
+<button class="w-full h-4xl bg-primary text-on-primary font-h2 rounded-lg active:scale-95 transition-transform flex items-center justify-center gap-sm" id="next-btn" onclick="nextStep()">
+                Next Step
+                <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+<button class="w-full h-4xl text-on-surface-variant font-label text-label hidden items-center justify-center hover:bg-surface-container-low rounded-lg transition-colors" id="back-btn" onclick="prevStep()">
+                Go Back
+            </button>
+<!-- Final Start Button (Hidden until Step 3) -->
+<button class="hidden w-full h-4xl bg-[#E8562A] text-white font-h2 rounded-lg active:scale-95 transition-transform flex items-center justify-center gap-sm shadow-lg shadow-primary/20" id="start-btn" onclick="alert('Session Started')">
+                Start Anchor Session
+                <span class="material-symbols-outlined">security</span>
+</button>
+</footer>
+</div>
+<script>
+        let currentStep = 1;
+
+        function nextStep() {
+            if (currentStep < 3) {
+                document.getElementById(`step-${currentStep}`).classList.replace('active-step', 'hidden-step');
+                currentStep++;
+                document.getElementById(`step-${currentStep}`).classList.replace('hidden-step', 'active-step');
+                updateUI();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                document.getElementById(`step-${currentStep}`).classList.replace('active-step', 'hidden-step');
+                currentStep--;
+                document.getElementById(`step-${currentStep}`).classList.replace('hidden-step', 'active-step');
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            const indicator = document.getElementById('step-indicator');
+            const nextBtn = document.getElementById('next-btn');
+            const startBtn = document.getElementById('start-btn');
+            const backBtn = document.getElementById('back-btn');
+
+            indicator.innerText = `Step ${currentStep} of 3`;
+
+            if (currentStep === 1) {
+                backBtn.classList.add('hidden');
+                backBtn.classList.remove('flex');
+            } else {
+                backBtn.classList.remove('hidden');
+                backBtn.classList.add('flex');
+            }
+
+            if (currentStep === 3) {
+                nextBtn.classList.add('hidden');
+                startBtn.classList.remove('hidden');
+                startBtn.classList.add('flex');
+            } else {
+                nextBtn.classList.remove('hidden');
+                startBtn.classList.add('hidden');
+                startBtn.classList.remove('flex');
+            }
+        }
+
+        function toggleChip(btn) {
+            const isSelected = btn.classList.contains('bg-primary-container');
+            if (isSelected) {
+                btn.classList.replace('bg-primary-container', 'bg-surface-container-high');
+                btn.classList.replace('text-on-primary-container', 'text-on-surface-variant');
+                btn.classList.replace('border-primary', 'border-outline-variant');
+                const check = btn.querySelector('.material-symbols-outlined:last-child');
+                if (check && check.innerText === 'check_circle') check.remove();
+            } else {
+                btn.classList.replace('bg-surface-container-high', 'bg-primary-container');
+                btn.classList.replace('text-on-surface-variant', 'text-on-primary-container');
+                btn.classList.replace('border-outline-variant', 'border-primary');
+                const check = document.createElement('span');
+                check.className = 'material-symbols-outlined text-[16px]';
+                check.innerText = 'check_circle';
+                btn.appendChild(check);
+            }
+        }
+    </script>
+</body></html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SafeGuard | Contact Consent</title>
+<!-- Google Fonts: Hanken Grotesk for Brand Identity -->
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;800&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container": "#ffe9e4",
+                    "secondary": "#954831",
+                    "on-surface-variant": "#5a413a",
+                    "on-tertiary-container": "#fcfcff",
+                    "surface-container-high": "#fde2dc",
+                    "tertiary-fixed-dim": "#86ceff",
+                    "on-primary-container": "#fffbff",
+                    "surface-container-low": "#fff1ed",
+                    "inverse-on-surface": "#ffede8",
+                    "outline": "#8e7068",
+                    "on-error": "#ffffff",
+                    "surface-bright": "#fff8f6",
+                    "on-tertiary-fixed-variant": "#004c6d",
+                    "secondary-fixed": "#ffdbd1",
+                    "primary-fixed-dim": "#ffb5a0",
+                    "secondary-fixed-dim": "#ffb5a0",
+                    "primary-container": "#cf4519",
+                    "tertiary": "#00628c",
+                    "inverse-primary": "#ffb5a0",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-tint": "#b02f00",
+                    "on-secondary-container": "#78321d",
+                    "on-background": "#261814",
+                    "primary": "#ac2d00",
+                    "on-primary-fixed": "#3b0900",
+                    "surface": "#fff8f6",
+                    "on-secondary-fixed-variant": "#77311c",
+                    "error": "#ba1a1a",
+                    "on-error-container": "#93000a",
+                    "error-container": "#ffdad6",
+                    "on-tertiary": "#ffffff",
+                    "inverse-surface": "#3d2d28",
+                    "on-surface": "#261814",
+                    "outline-variant": "#e2bfb5",
+                    "tertiary-fixed": "#c8e6ff",
+                    "tertiary-container": "#007caf",
+                    "on-secondary-fixed": "#3b0900",
+                    "surface-variant": "#f7ddd6",
+                    "on-primary-fixed-variant": "#872100",
+                    "surface-container-highest": "#f7ddd6",
+                    "on-tertiary-fixed": "#001e2e",
+                    "on-secondary": "#ffffff",
+                    "background": "#fff8f6",
+                    "on-primary": "#ffffff",
+                    "secondary-container": "#ff9c80",
+                    "primary-fixed": "#ffdbd1",
+                    "surface-dim": "#efd4ce"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "12px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "3xl": "40px",
+                    "xl": "24px",
+                    "lg": "16px",
+                    "4xl": "48px",
+                    "2xl": "32px"
+            },
+            "fontFamily": {
+                    "h2": ["Hanken Grotesk"],
+                    "body": ["Hanken Grotesk"],
+                    "display": ["Hanken Grotesk"],
+                    "mono": ["JetBrains Mono"],
+                    "body-sm": ["Hanken Grotesk"],
+                    "label": ["Hanken Grotesk"],
+                    "h1": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}],
+                    "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                    "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                    "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                    "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                    "h1-mobile": ["20px", {"lineHeight": "26px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #FAFAF7; /* As per Style Guidance Level 0 */
+            font-family: 'Hanken Grotesk', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .bento-card {
+            background: #FFFFFF;
+            border: 1px solid #E4E2DB;
+            box-shadow: 0px 2px 4px rgba(26, 26, 24, 0.05);
+            transition: all 0.3s ease;
+        }
+        .bento-card:hover {
+            box-shadow: 0px 4px 8px rgba(26, 26, 24, 0.08);
+            border-color: #e2bfb5;
+        }
+        .pulse-ring {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .5; transform: scale(1.05); }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col items-center">
+<!-- Top Navigation Anchor (Public Version) -->
+<header class="fixed top-0 w-full z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none flex justify-between items-center px-lg h-[64px]">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1;">security</span>
+<span class="font-h1 text-h1-mobile text-primary dark:text-primary-fixed-dim tracking-tight">SafeGuard</span>
+</div>
+<div class="h-10 w-10 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a friendly woman in her 30s with a warm smile, wearing business casual attire. The lighting is soft and even, set against a clean, neutral architectural background that conveys trust and corporate reliability. The overall aesthetic is bright and high-key, matching a modern light-mode UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPLs2X8d-ypx3Q49ebfK9j7pwECp8DOn7YiyDYJem3icGA7pYaFH8fOs3dLJLrjkG8plsIknNh3ar4VVEuNV2Vtd1_29-Qt9K5YmR_fsjLYgAjKdarYLG5rldl_g54QNaVEsDEYTi8VZ2qqfm4gOjlkcWvnzdkEsPzFQnPh9JLxBZhYPpxqb8WaQI1DRqiM0uT7f3vBH0C02KejbjxM-5ZcfooY585VyIZizgox-iQaW25na_Cxw68hMcbzCR_B9QjjAuW26Mi-Vk"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="w-full max-w-[480px] px-lg pt-[100px] pb-3xl flex flex-col gap-xl">
+<!-- Welcome Hero Section -->
+<section class="text-center space-y-md">
+<div class="inline-flex items-center justify-center p-3 bg-primary-container/10 rounded-full mb-sm">
+<span class="material-symbols-outlined text-primary text-[32px]">person_add</span>
+</div>
+<h1 class="font-display text-display text-on-surface">Sarah Mitchell added you as a trusted contact</h1>
+<p class="font-body text-body text-on-surface-variant px-md">
+                SafeGuard helps individuals stay protected by notifying their inner circle during emergencies. Sarah wants you to be part of her safety network.
+            </p>
+</section>
+<!-- Feature Bento Grid: WHAT YOU'LL RECEIVE -->
+<section class="flex flex-col gap-md">
+<h2 class="font-label text-label text-on-surface-variant uppercase tracking-widest px-xs">What you'll receive</h2>
+<div class="grid grid-cols-1 gap-md">
+<!-- Alert Card -->
+<div class="bento-card p-lg rounded-xl flex items-start gap-lg">
+<div class="w-12 h-12 rounded-lg bg-error-container flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">notifications_active</span>
+</div>
+<div>
+<h3 class="font-h2 text-h2 text-on-surface">Instant SOS Alerts</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Real-time notifications if Sarah triggers an emergency alarm or fails to check in.</p>
+</div>
+</div>
+<!-- Location Card -->
+<div class="bento-card p-lg rounded-xl flex items-start gap-lg">
+<div class="w-12 h-12 rounded-lg bg-tertiary-container/10 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+<div>
+<h3 class="font-h2 text-h2 text-on-surface">Live Location Access</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Only shared during active sessions or alerts to prioritize Sarah's privacy.</p>
+</div>
+</div>
+<!-- Session Card -->
+<div class="bento-card p-lg rounded-xl flex items-start gap-lg">
+<div class="w-12 h-12 rounded-lg bg-surface-variant flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">timer</span>
+</div>
+<div>
+<h3 class="font-h2 text-h2 text-on-surface">Session Details</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">View planned route information and estimated return times for safety sessions.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Privacy Assurance -->
+<div class="flex items-center gap-sm p-md bg-surface-container-low rounded-lg border border-outline-variant/30">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">verified_user</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Your data is encrypted and only used for Sarah's safety.</p>
+</div>
+<!-- Action Section -->
+<section class="flex flex-col gap-sm pt-md">
+<button class="w-full h-12 bg-primary text-on-primary font-h2 rounded-md shadow-sm active:scale-95 transition-all hover:opacity-90 flex items-center justify-center gap-sm">
+                Accept &amp; Stay Connected
+            </button>
+<button class="w-full h-12 bg-transparent text-primary font-h2 rounded-md border border-outline active:scale-95 transition-all hover:bg-surface-variant/20">
+                No Thanks
+            </button>
+</section>
+<!-- Footer -->
+<footer class="mt-xl text-center space-y-sm opacity-60">
+<p class="font-label text-label">Powered by SafeGuard Intelligence Systems</p>
+<div class="flex justify-center gap-xl">
+<a class="font-label text-label underline" href="#">Privacy Policy</a>
+<a class="font-label text-label underline" href="#">Terms of Service</a>
+</div>
+</footer>
+</main>
+<!-- Contextual Atmospheric Element: Subtle background glow -->
+<div class="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden">
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary/5 rounded-full blur-[100px]"></div>
+<div class="absolute top-1/2 -left-48 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px]"></div>
+</div>
+<script>
+        // Micro-interaction for buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.style.transform = 'scale(0.98)';
+            });
+            button.addEventListener('mouseup', () => {
+                button.style.transform = 'scale(1)';
+            });
+            button.addEventListener('mouseleave', () => {
+                button.style.transform = 'scale(1)';
+            });
+        });
+
+        // Simulating a loading state on accept
+        const primaryBtn = document.querySelector('.bg-primary');
+        primaryBtn.addEventListener('click', function() {
+            const originalContent = this.innerHTML;
+            this.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Connecting...';
+            this.disabled = true;
+            this.classList.add('opacity-80');
+            
+            setTimeout(() => {
+                this.innerHTML = '<span class="material-symbols-outlined">check_circle</span> You are now a contact';
+                this.classList.replace('bg-primary', 'bg-tertiary-container');
+                this.classList.replace('text-on-primary', 'text-on-tertiary-container');
+            }, 1500);
+        });
+    </script>
+</body></html>

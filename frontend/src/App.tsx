@@ -16,6 +16,8 @@ import CreateSessionScreen from "./features/session/screens/CreateSessionScreen"
 import ActiveSessionScreen from "./features/session/screens/ActiveSessionScreen";
 import SessionTimelineScreen from "./features/session/screens/SessionTimelineScreen";
 import SOSActivatedScreen from "./features/session/screens/SOSActivatedScreen";
+import SessionSummaryScreen from "./features/session/screens/SessionSummaryScreen";
+import SessionHistoryScreen from "./features/session/screens/SessionHistoryScreen";
 
 // Feature: contacts
 import ContactsManagerScreen from "./features/contacts/screens/ContactsManagerScreen";
@@ -46,7 +48,9 @@ export default function App() {
         {/* Session */}
         <Route path="/session/new" element={<CreateSessionScreen />} />
         <Route path="/session/active" element={<ActiveSessionScreen />} />
+        <Route path="/session/summary" element={<SessionSummaryScreen />} />
         <Route path="/session/timeline/:id" element={<SessionTimelineScreen />} />
+        <Route path="/session/history" element={<SessionHistoryScreen />} />
         <Route path="/session/sos" element={<SOSActivatedScreen />} />
 
         {/* Contacts */}
