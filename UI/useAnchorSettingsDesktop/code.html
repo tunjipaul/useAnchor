@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface": "#261814",
+                    "on-tertiary-fixed": "#001e2e",
+                    "primary": "#ac2d00",
+                    "error-container": "#ffdad6",
+                    "on-background": "#261814",
+                    "on-tertiary-fixed-variant": "#004c6d",
+                    "on-tertiary-container": "#fcfcff",
+                    "primary-fixed": "#ffdbd1",
+                    "outline-variant": "#e2bfb5",
+                    "inverse-primary": "#ffb5a0",
+                    "primary-container": "#cf4519",
+                    "on-secondary-fixed-variant": "#77311c",
+                    "tertiary": "#00628c",
+                    "surface-container-highest": "#f7ddd6",
+                    "on-secondary-container": "#78321d",
+                    "surface-container": "#ffe9e4",
+                    "secondary-fixed": "#ffdbd1",
+                    "background": "#fff8f6",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "tertiary-fixed": "#c8e6ff",
+                    "on-surface-variant": "#5a413a",
+                    "secondary": "#954831",
+                    "primary-fixed-dim": "#ffb5a0",
+                    "surface-container-high": "#fde2dc",
+                    "inverse-surface": "#3d2d28",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed": "#3b0900",
+                    "tertiary-container": "#007caf",
+                    "surface-tint": "#b02f00",
+                    "secondary-container": "#ff9c80",
+                    "outline": "#8e7068",
+                    "tertiary-fixed-dim": "#86ceff",
+                    "on-primary-container": "#fffbff",
+                    "surface-bright": "#fff8f6",
+                    "surface": "#fff8f6",
+                    "on-secondary-fixed": "#3b0900",
+                    "surface-dim": "#efd4ce",
+                    "on-tertiary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "inverse-on-surface": "#ffede8",
+                    "on-primary-fixed-variant": "#872100",
+                    "error": "#ba1a1a",
+                    "surface-container-low": "#fff1ed",
+                    "surface-variant": "#f7ddd6",
+                    "secondary-fixed-dim": "#ffb5a0",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "sm": "8px",
+                    "3xl": "40px",
+                    "lg": "16px",
+                    "4xl": "48px",
+                    "2xl": "32px",
+                    "md": "12px",
+                    "xl": "24px"
+            },
+            "fontFamily": {
+                    "display": ["Hanken Grotesk"],
+                    "body": ["Hanken Grotesk"],
+                    "h1": ["Hanken Grotesk"],
+                    "body-sm": ["Hanken Grotesk"],
+                    "label": ["Hanken Grotesk"],
+                    "h2": ["Hanken Grotesk"],
+                    "mono": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                    "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                    "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                    "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}],
+                    "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2bfb5; border-radius: 10px; }
+        
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #ac2d00;
+        }
+        .toggle-checkbox:checked + .toggle-label .toggle-dot {
+            transform: translateX(100%);
+            background-color: white;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center h-16 px-lg bg-background z-50 border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-md">
+<span class="font-display text-h1 font-h1 text-primary">Guardian Desktop</span>
+<div class="hidden md:flex ml-xl items-center bg-surface-container rounded-full px-md py-xs border border-outline-variant">
+<span class="material-symbols-outlined text-on-surface-variant mr-xs">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm w-64 text-on-surface" placeholder="Search settings..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="hidden lg:flex items-center gap-xs px-md py-xs bg-primary text-on-primary rounded-full font-label text-label cursor-pointer active:scale-95 transition-transform">
+                Emergency SOS
+            </button>
+<div class="flex items-center gap-sm">
+<button class="p-xs text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined">help</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant ml-xs">
+<img class="w-full h-full object-cover" data-alt="Close-up portrait of a professional male user in a brightly lit modern office environment, high-key lighting consistent with a clean light-mode interface. The color palette features soft neutrals and warm skin tones, reflecting a professional and secure atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjzuwLQurTUEKzRXomM2CNykQKdrfdkKrZtSxELbPZdL9cvFyIhXqGYus38kGDO0c54ImWYgugbIQoz0KXtnY-ODg1pnhtRqKxQBKMZqLkwXuxB47m7gqnR7Uy6HttWxBKlihhDTwmFLoZHClj5BqoGrbkdDvGy_fr16uf-YNqjhZSkYYAsM8QwTJS1_K1TNNLB9X5HEAGGybbvuDfA4VTbihpsBAx8X0zzN7zWg--4Deu3uAWJnS3NVIN37ljnz3cR2x5jIspuAc"/>
+</div>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-surface-container-low dark:bg-surface-container-low border-r border-outline-variant dark:border-outline flex flex-col py-lg gap-sm z-40">
+<div class="px-lg mb-md">
+<div class="flex items-center gap-sm mb-xs">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container">shield</span>
+</div>
+<div>
+<h2 class="font-display text-h2 font-h2 text-on-surface leading-tight">Safety Hub</h2>
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Active Monitoring</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-sm space-y-xs">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body text-body">Home Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">safety_check</span>
+<span class="font-body text-body">Sessions</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">contacts</span>
+<span class="font-body text-body">Contacts</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary font-bold bg-primary-fixed-dim/20 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-body text-body">Settings</span>
+</a>
+</nav>
+<div class="px-md mt-auto">
+<button class="w-full py-md bg-primary text-on-primary rounded-xl font-h2 text-h2 shadow-sm active:scale-95 transition-transform">
+                Start New Session
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-16 p-xl min-h-[calc(100vh-64px)] bg-background">
+<div class="max-w-6xl mx-auto">
+<header class="mb-xl">
+<h1 class="font-display text-display text-on-surface">Settings</h1>
+<p class="font-body text-on-surface-variant">Configure your safety preferences and account details.</p>
+</header>
+<div class="grid grid-cols-12 gap-xl">
+<!-- Settings Sub-Navigation -->
+<nav class="col-span-3 flex flex-col gap-xs">
+<button class="flex items-center gap-md px-lg py-md rounded-xl bg-surface-container-high text-primary font-bold border-l-4 border-primary transition-all">
+<span class="material-symbols-outlined">person</span>
+<span class="font-body text-body">Profile</span>
+</button>
+<button class="flex items-center gap-md px-lg py-md rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body text-body">Trusted Contacts</span>
+</button>
+<button class="flex items-center gap-md px-lg py-md rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-body text-body">Notifications</span>
+</button>
+<button class="flex items-center gap-md px-lg py-md rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">record_voice_over</span>
+<span class="font-body text-body">Voice Safe Word</span>
+</button>
+<button class="flex items-center gap-md px-lg py-md rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">power_settings_new</span>
+<span class="font-body text-body">Power Button Trigger</span>
+</button>
+<button class="flex items-center gap-md px-lg py-md rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">lock</span>
+<span class="font-body text-body">Privacy</span>
+</button>
+<div class="my-sm border-t border-outline-variant"></div>
+<button class="flex items-center gap-md px-lg py-md rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">info</span>
+<span class="font-body text-body">About</span>
+</button>
+<button class="flex items-center gap-md px-lg py-md rounded-xl text-error hover:bg-error-container transition-all">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-body text-body">Logout</span>
+</button>
+</nav>
+<!-- Settings Detail Area -->
+<div class="col-span-9 bg-surface-container-lowest rounded-2xl border border-outline-variant p-2xl shadow-sm overflow-hidden relative">
+<!-- Profile Section Example -->
+<div class="space-y-2xl" id="profile-settings">
+<div>
+<h2 class="font-display text-h1 text-on-surface mb-xs">Profile Information</h2>
+<p class="font-body text-on-surface-variant text-body-sm">Update your personal details and contact information.</p>
+</div>
+<div class="flex items-center gap-xl pb-xl border-b border-outline-variant">
+<div class="relative group">
+<div class="w-24 h-24 rounded-full overflow-hidden border-2 border-primary-fixed">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a user against a minimalist, clean, light-mode background. The aesthetic is institutional and trustworthy, utilizing a palette of whites, soft greys, and primary orange accents. Lighting is flat and professional, perfect for a corporate utility application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOLzWsw_zO6-S3lncDui70PSuXgHpmG3anI0KLceh_yatBzharQjC6lMaC4GDtUVDQv6aX6nnYfNT0kHjTSVoO-1kADf1JgA2fAbrs2Vyb3-zOtW70lxutUKQnbf9QERSW3QQmkwuWXFh1moyDh_z5viAHH4hlXDZFnNO_4JZMIp45384XJKCOFYM6OhI2eIoUZDb085PRl7-prHr7mE9pcpiK_zQUPHV5-GCHvP8KRUcTefv22TcRty0lM6RGtaRf5amh9MDXlYg"/>
+</div>
+<button class="absolute bottom-0 right-0 p-xs bg-primary text-on-primary rounded-full border-2 border-surface-container-lowest shadow-md">
+<span class="material-symbols-outlined text-sm">edit</span>
+</button>
+</div>
+<div>
+<h3 class="font-h2 text-h2 text-on-surface">Alex Thompson</h3>
+<p class="text-body-sm text-on-surface-variant">Member since Jan 2024</p>
+<span class="inline-block mt-xs px-md py-xs bg-primary-fixed text-on-primary-fixed text-label font-label rounded-full">Premium User</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-xl">
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant block ml-xs">Full Name</label>
+<input class="w-full p-md border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary bg-background text-on-surface" type="text" value="Alex Thompson"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant block ml-xs">Email Address</label>
+<input class="w-full p-md border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary bg-background text-on-surface" type="email" value="alex.t@guardian.com"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant block ml-xs">Phone Number</label>
+<input class="w-full p-md border border-outline-variant rounded-xl focus:border-primary focus:ring-1 focus:ring-primary bg-background text-on-surface" type="tel" value="+1 (555) 123-4567"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant block ml-xs">Emergency Identification ID</label>
+<input class="w-full p-md border border-outline-variant rounded-xl bg-surface-variant text-on-surface-variant cursor-not-allowed" readonly="" type="text" value="GARD-9901-XT"/>
+</div>
+</div>
+<div>
+<h2 class="font-display text-h2 text-on-surface mb-lg">Safety Preferences</h2>
+<div class="space-y-md">
+<div class="flex items-center justify-between p-lg rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-tertiary-container/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">notifications_active</span>
+</div>
+<div>
+<p class="font-h2 text-body font-bold text-on-surface">Critical Alert Notifications</p>
+<p class="text-body-sm text-on-surface-variant">Allow sound even if Do Not Disturb is active</p>
+</div>
+</div>
+<div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-outline-variant appearance-none cursor-pointer outline-none transition-transform" id="toggle1" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-outline-variant cursor-pointer transition-colors" for="toggle1">
+<span class="toggle-dot absolute block w-6 h-6 rounded-full bg-white border-2 border-outline-variant shadow-sm transition-transform"></span>
+</label>
+</div>
+</div>
+<div class="flex items-center justify-between p-lg rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">location_on</span>
+</div>
+<div>
+<p class="font-h2 text-body font-bold text-on-surface">Background Location Access</p>
+<p class="text-body-sm text-on-surface-variant">Required for tracking during active sessions</p>
+</div>
+</div>
+<div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-outline-variant appearance-none cursor-pointer outline-none transition-transform" id="toggle2" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-outline-variant cursor-pointer transition-colors" for="toggle2">
+<span class="toggle-dot absolute block w-6 h-6 rounded-full bg-white border-2 border-outline-variant shadow-sm transition-transform"></span>
+</label>
+</div>
+</div>
+</div>
+</div>
+<div class="flex justify-end gap-md pt-xl border-t border-outline-variant">
+<button class="px-xl py-md text-on-surface-variant font-bold hover:bg-surface-container-low rounded-xl transition-colors">
+                                Cancel
+                            </button>
+<button class="px-xl py-md bg-primary text-on-primary font-bold rounded-xl shadow-md hover:bg-primary/90 active:scale-95 transition-all">
+                                Save Changes
+                            </button>
+</div>
+</div>
+<!-- Subtle background decoration -->
+<div class="absolute -bottom-24 -right-24 w-64 h-64 bg-primary-fixed-dim/10 rounded-full blur-3xl -z-10"></div>
+</div>
+</div>
+</div>
+</main>
+<!-- Visual Safety Indicator (Sticky Footer) -->
+<div class="fixed bottom-lg right-lg z-50">
+<div class="flex items-center gap-md bg-surface-container-lowest border border-outline-variant px-lg py-md rounded-2xl shadow-xl">
+<div class="relative">
+<div class="w-3 h-3 bg-primary rounded-full animate-ping absolute"></div>
+<div class="w-3 h-3 bg-primary rounded-full relative"></div>
+</div>
+<div>
+<p class="text-label font-label text-primary">System Secure</p>
+<p class="text-[10px] text-on-surface-variant">V3.4.1 Active</p>
+</div>
+</div>
+</div>
+<script>
+        // Micro-interactions for toggles and nav items
+        document.querySelectorAll('.toggle-checkbox').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                // Logic for toggle visual feedback would go here if not handled by CSS
+            });
+        });
+
+        // Simple navigation switching simulation
+        const navButtons = document.querySelectorAll('nav.col-span-3 button');
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                navButtons.forEach(b => {
+                    b.classList.remove('bg-surface-container-high', 'text-primary', 'font-bold', 'border-l-4', 'border-primary');
+                    b.classList.add('text-on-surface-variant');
+                });
+                btn.classList.add('bg-surface-container-high', 'text-primary', 'font-bold', 'border-l-4', 'border-primary');
+                btn.classList.remove('text-on-surface-variant');
+            });
+        });
+    </script>
+</body></html>

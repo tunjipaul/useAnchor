@@ -30,7 +30,7 @@ export default function SOSActivatedScreen() {
 
   function handleSafeNow() {
     // Revert status to active but keep SOS timestamp for history
-    const updatedSession = { ...session, status: 'active' as const };
+    const updatedSession = { ...session, status: 'active' as const } as SessionData;
     sessionStore.setActiveSession(updatedSession);
     navigate("/session/active");
   }
