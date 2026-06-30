@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, UserPlus, Search, MoreVertical, Plus, X,
-  Home, Activity, Users, Settings, Siren, Bell, Info,
+  Info,
   Edit2, Trash2, MapPin, EyeOff,
 } from "lucide-react";
 import MobileBottomNav from "../../../components/MobileBottomNav";

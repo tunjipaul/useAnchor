@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle, AlertTriangle, Play, HelpCircle, History, Search, Bell, Info, Home, Activity, Users, Settings, Siren, ChevronRight, Filter, Plus } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertTriangle, Play, HelpCircle, History, ChevronRight, Filter, Plus } from "lucide-react";
 import { sessionStore, type SessionData } from "../utils/sessionStore";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
