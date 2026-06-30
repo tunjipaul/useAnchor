@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Activity, Users, Settings, Siren } from "lucide-react";
+import { Home, Activity, Users, Settings, Siren, Bell } from "lucide-react";
 
 export default function DesktopSidebar() {
   const navigate = useNavigate();
@@ -43,6 +43,17 @@ export default function DesktopSidebar() {
         >
           <Users size={20} />
           <span className="text-[15px]">Contacts</span>
+        </button>
+        <button
+          onClick={() => navigate("/alerts")}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left ${
+            currentPath.includes("/alerts")
+              ? "bg-[#fde2dc]/60 text-[#ac2d00] font-bold"
+              : "text-[#5a413a] hover:bg-[#fde2dc] hover:text-[#ac2d00]"
+          }`}
+        >
+          <Bell size={20} />
+          <span className="text-[15px]">Alerts</span>
         </button>
         <button
           onClick={() => navigate("/settings")}

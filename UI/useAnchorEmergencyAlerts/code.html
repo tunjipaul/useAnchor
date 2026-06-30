@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Emergency Alerts | Anchor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sos-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.2; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2bfb5;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#86ceff",
+                        "on-secondary-fixed": "#3b0900",
+                        "outline": "#8e7068",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#ffede8",
+                        "tertiary-container": "#007caf",
+                        "background": "#fff8f6",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#ffdbd1",
+                        "surface": "#fff8f6",
+                        "tertiary-fixed": "#c8e6ff",
+                        "on-tertiary-container": "#fcfcff",
+                        "surface-container-highest": "#f7ddd6",
+                        "secondary": "#954831",
+                        "primary": "#ac2d00",
+                        "on-background": "#261814",
+                        "surface-variant": "#f7ddd6",
+                        "surface-tint": "#b02f00",
+                        "tertiary": "#00628c",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#78321d",
+                        "on-primary-fixed": "#3b0900",
+                        "inverse-surface": "#3d2d28",
+                        "outline-variant": "#e2bfb5",
+                        "on-primary-container": "#fffbff",
+                        "on-error": "#ffffff",
+                        "surface-container": "#ffe9e4",
+                        "inverse-primary": "#ffb5a0",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#fff8f6",
+                        "secondary-fixed": "#ffdbd1",
+                        "primary-fixed-dim": "#ffb5a0",
+                        "primary-container": "#cf4519",
+                        "secondary-fixed-dim": "#ffb5a0",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#efd4ce",
+                        "surface-container-low": "#fff1ed",
+                        "secondary-container": "#ff9c80",
+                        "on-surface-variant": "#5a413a",
+                        "on-primary-fixed-variant": "#872100",
+                        "on-surface": "#261814",
+                        "on-tertiary-fixed": "#001e2e",
+                        "on-secondary-fixed-variant": "#77311c",
+                        "surface-container-high": "#fde2dc",
+                        "on-tertiary-fixed-variant": "#004c6d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "16px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "md": "12px",
+                        "xl": "24px",
+                        "4xl": "48px",
+                        "3xl": "40px",
+                        "2xl": "32px"
+                    },
+                    "fontFamily": {
+                        "h1": ["Hanken Grotesk"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "display": ["Hanken Grotesk"],
+                        "body": ["Hanken Grotesk"],
+                        "label": ["Hanken Grotesk"],
+                        "mono": ["JetBrains Mono"],
+                        "h2": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                        "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                        "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                        "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                        "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                        "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body overflow-hidden">
+<div class="flex h-screen w-full">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-screen w-64 p-md gap-sm bg-surface-container dark:bg-surface-container-lowest border-r border-outline-variant">
+<div class="flex flex-col gap-xs mb-xl px-md">
+<span class="font-h2 text-h2 font-black text-primary dark:text-inverse-primary">useAnchor</span>
+<span class="font-label text-label text-on-surface-variant uppercase tracking-widest opacity-70">Active Reliability</span>
+</div>
+<nav class="flex flex-col gap-sm flex-1">
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-body text-body">Home</span>
+</a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="font-body text-body">Sessions</span>
+</a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body text-body">Circle</span>
+</a>
+<a class="flex items-center gap-md bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-lg px-md py-sm font-bold active:translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="font-body text-body">Alerts</span>
+</a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body text-body">Settings</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-outline-variant pt-md px-md">
+<button class="w-full bg-primary text-on-primary font-bold py-md rounded-lg flex items-center justify-center gap-sm active:scale-95 transition-all shadow-md">
+<span class="material-symbols-outlined" data-weight="fill">emergency_share</span>
+                    Emergency SOS
+                </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-full relative overflow-hidden">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-lg py-sm w-full sticky top-0 z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-md">
+<h1 class="font-h1 text-h1 text-primary dark:text-inverse-primary font-bold">Anchor</h1>
+</div>
+<div class="flex items-center gap-lg">
+<div class="flex gap-sm">
+<button class="p-sm text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full material-symbols-outlined active:scale-95">notifications</button>
+<button class="p-sm text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full material-symbols-outlined active:scale-95">emergency_share</button>
+</div>
+<div class="h-10 w-10 rounded-full bg-outline-variant overflow-hidden border border-outline">
+<img class="w-full h-full object-cover" data-alt="A professional and warm headshot of a middle-aged security consultant in a brightly lit, modern minimalist office. The background features soft daylight through large windows, creating a clean light-mode aesthetic. The individual has a confident yet reassuring expression, wearing a tailored navy blazer. The overall image quality is high-contrast and evokes trust and reliability." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCACrZsabx0tdl3Xvc-hqAw589uk60sGf6ht8XGXxrrRXYJDT8JGwRh-SJZDkwxCIeqMoWWcaqe_FJM7wJ3WD5Ft2iW7NTHye2yRW1PGnXv3PUV0RMSE43tzE9Iy8lFcs5uJ6pAgZ-O0mRj-zYAjBk3cAot4ND-DRZgc6HFAjsCixASmBMN4iRIMAVsYFr-BxRVJnBaYEfIVzlRNNoWSQU41AUNJOB7G-d-JEcDKQjMVW6hHnAlM19C22A1pLinsZ_dR2XzVN5rDas"/>
+</div>
+</div>
+</header>
+<!-- Page Title Area -->
+<div class="px-xl py-lg bg-surface flex flex-col gap-xs">
+<h2 class="font-display text-display text-on-surface">Emergency Alerts</h2>
+<p class="font-body text-body text-on-surface-variant">Monitor and respond to active safety incidents from your circle.</p>
+</div>
+<!-- Dashboard Content -->
+<div class="flex-1 flex flex-col p-xl pt-0 overflow-hidden">
+<!-- Search & Filters -->
+<div class="flex flex-wrap items-center justify-between gap-md mb-lg">
+<div class="relative flex-1 min-w-[300px]">
+<span class="absolute left-md top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant">search</span>
+<input class="w-full pl-xl pr-md py-md bg-surface border border-outline-variant rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all font-body" placeholder="Search by name or session..." type="text"/>
+</div>
+<div class="flex gap-sm overflow-x-auto pb-sm md:pb-0">
+<button class="px-lg py-sm rounded-full bg-primary text-on-primary font-label text-label">All</button>
+<button class="px-lg py-sm rounded-full bg-surface-container-high text-on-surface-variant border border-outline-variant font-label text-label hover:bg-surface-variant transition-colors">SOS Triggered</button>
+<button class="px-lg py-sm rounded-full bg-surface-container-high text-on-surface-variant border border-outline-variant font-label text-label hover:bg-surface-variant transition-colors">Missed Check-In</button>
+<button class="px-lg py-sm rounded-full bg-surface-container-high text-on-surface-variant border border-outline-variant font-label text-label hover:bg-surface-variant transition-colors">Resolved</button>
+</div>
+</div>
+<!-- Two-Panel Layout -->
+<div class="flex-1 flex gap-lg overflow-hidden h-full">
+<!-- Left Panel: Incident List -->
+<div class="w-full md:w-[400px] flex flex-col gap-md overflow-y-auto custom-scrollbar pr-xs">
+<!-- Active Incident Card -->
+<div class="p-md bg-surface border-2 border-primary rounded-xl shadow-sm relative cursor-pointer active:scale-[0.99] transition-transform">
+<div class="flex justify-between items-start mb-sm">
+<div class="flex gap-md items-center">
+<div class="relative h-12 w-12 shrink-0">
+<div class="absolute inset-0 bg-primary/20 rounded-full sos-pulse"></div>
+<img class="w-full h-full rounded-full object-cover relative z-10 border-2 border-primary" data-alt="Close-up portrait of a young woman named Sarah Jenkins with a worried but alert expression. She has curly brown hair and is wearing a high-visibility outdoor jacket. The lighting is low-key, night-time urban setting with blue and orange street lights blurring in the background. The aesthetic is gritty yet high-definition, focusing on urgency and safety." src="https://lh3.googleusercontent.com/aida-public/AB6AXuADgKvhfU1mMNJSMUNFz4zOvMN-HYNaYFFwZ4STbl9f9xUGhgJ6LVeSuNHHqmnXECm4Wzcxv-0WIPG4ZV5MiQkz1QxxqCLtm7dh5l1kCxvOkMIGI-6wS2y2AWq2mBmiSHat3Esk4K1UF0KFjvNzjIC-uzix5CnsqvGPIHo70NN6ozRDtDpJCWAsJg35V8IZdvMvqD_TDBTNpv82VrJHaEVTm8W4tIv_pTFRtqP4Z0JSwhfhbD0tHDds37lq-Y-yfPKGORtxYdl6Pog"/>
+</div>
+<div>
+<h3 class="font-h2 text-h2 text-on-surface leading-tight">Sarah Jenkins</h3>
+<span class="font-label text-label text-on-surface-variant">2m ago</span>
+</div>
+</div>
+<span class="bg-primary text-on-primary text-[10px] font-bold px-sm py-1 rounded-full uppercase tracking-tighter">Active</span>
+</div>
+<div class="mt-sm">
+<div class="flex items-center gap-xs text-primary font-bold mb-xs">
+<span class="material-symbols-outlined text-[18px]" data-weight="fill">emergency</span>
+<span class="font-body-sm text-body-sm">SOS Triggered</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Session: "Late Night Walk from Library"</p>
+</div>
+</div>
+<!-- Card 2: Missed Check-In -->
+<div class="p-md bg-surface border border-outline-variant rounded-xl shadow-sm hover:border-secondary transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-sm">
+<div class="flex gap-md items-center">
+<img class="h-12 w-12 rounded-full object-cover border border-outline-variant" data-alt="A portrait of an elderly man with gray hair and kind eyes, wearing a simple beige sweater. The environment is a cozy, brightly lit living room with soft focus furniture in the background. The lighting is warm and domestic, typical of a safe home environment. The aesthetic is clean, sharp, and realistic, conveying a sense of community care." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7Z6e0XWdDndLQ2MYHqasAvdwXKq1HOCrd6vNB1kfG6J7QPOmYBLMdl7aEbIwg1bo1jtodTmJ6jwbF1c0ZHZ32-isJzZvQEzjoKd7MgbZOVYSPBp8U50uAGF7gQCFOUgX5XUvZX_VvRc2sJpadqv7lStgcT4XV4XQPUdzjrhm3IqnYrqux3IC-O4IYKr3YNpjuVTuLdKbdyT3e6_o7oYyYVHaX-FnQ0wTO08kF47B0B765F-Caq1ggdNrGNwtMcumeVk2Qrj6RQUc"/>
+<div>
+<h3 class="font-h2 text-h2 text-on-surface leading-tight">Marcus Thorne</h3>
+<span class="font-label text-label text-on-surface-variant">15m ago</span>
+</div>
+</div>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-bold px-sm py-1 rounded-full uppercase tracking-tighter">Warning</span>
+</div>
+<div class="mt-sm">
+<div class="flex items-center gap-xs text-secondary font-bold mb-xs">
+<span class="material-symbols-outlined text-[18px]">timer_off</span>
+<span class="font-body-sm text-body-sm">Missed Check-In</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Session: "Evening Jog in Central Park"</p>
+</div>
+</div>
+<!-- Card 3: Resolved -->
+<div class="p-md bg-surface/50 border border-outline-variant rounded-xl opacity-70 grayscale-[0.5]">
+<div class="flex justify-between items-start mb-sm">
+<div class="flex gap-md items-center">
+<img class="h-12 w-12 rounded-full object-cover border border-outline-variant" data-alt="A clear, professional studio portrait of a college student with glasses and a friendly smile. The background is a solid, neutral light gray, emphasizing the clarity of the subject. The lighting is soft and even, highlighting the detailed features of the face. The style is modern corporate photography, clean and approachable." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-CNxRMKwZXWkFUwTHgdUwjdbkF4ESw3GSgJ4vPfVUr6-qmDOhL0ezz8x18v1BLFHc8Aoyx_s3SMQ50BL2Wd3goQ8ukzqd6BtlJbxJUPnZlGLa3bQ89k1fT1Q2SjmgWr8kM1KBFzQyOlfaKqZkkuIx5GPJy47ZSKKg_838okNqQa7yqGgthrXhkirrWwfh14-0tL8Lc6IdRT9d8p_E-Mh5ZjGHX5tYb_KXCMOIepSfIDUhXCshmkhcOHUYp0GfU9PYvH9fFKybV8E"/>
+<div>
+<h3 class="font-h2 text-h2 text-on-surface leading-tight">Elena Rossi</h3>
+<span class="font-label text-label text-on-surface-variant">1h ago</span>
+</div>
+</div>
+<span class="bg-surface-container-highest text-on-surface-variant text-[10px] font-bold px-sm py-1 rounded-full uppercase tracking-tighter">Resolved</span>
+</div>
+<div class="mt-sm">
+<div class="flex items-center gap-xs text-on-surface-variant font-bold mb-xs">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+<span class="font-body-sm text-body-sm">SOS Triggered</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Session: "Commute to South Station"</p>
+</div>
+</div>
+</div>
+<!-- Right Panel: Selected Preview -->
+<div class="hidden md:flex flex-1 flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<!-- Map Area -->
+<div class="relative h-[240px] w-full bg-surface-container overflow-hidden">
+<div class="absolute inset-0 z-0" data-location="Chicago, IL" style="">
+<img class="w-full h-full object-cover" data-alt="A high-detail satellite and street map view of a Chicago urban neighborhood at night. Neon lights and street lamps illuminate the grid pattern of the streets. A glowing red pulsing marker indicates an active emergency location in a park area. The map style is clean, high-contrast, with dark tones and vibrant accent lines for traffic and topography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZohXEkMQFnuhiASGnBb1UE0kmkhzsBcFKtJfBqkItujKpz-cWnBFv4eRnQPMoyCuFOuaY4CXJTAPUrFRNJHkpYlmUi8TOmPvBGoTBthDHjiWsXdizmN2cehSUFu5pkBK5GbyD6CNHAXxSBQme00wbgWwyKP6iHCvMswIU3kVZwhJf-aHc-Vwz8NyjYAfNkt7GRYChYQmVsVVSIAPfoToQUEbdUlFCod_WBp7YyAiaaDVEZE4XAFGi-bmwsm0IoPke65Ab_oChrTQ"/>
+</div>
+<!-- Map Overlay UI -->
+<div class="absolute top-md right-md flex flex-col gap-sm">
+<button class="h-10 w-10 bg-white rounded shadow-md flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">zoom_in</span>
+</button>
+<button class="h-10 w-10 bg-white rounded shadow-md flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">my_location</span>
+</button>
+</div>
+</div>
+<!-- Incident Details -->
+<div class="p-xl flex-1 flex flex-col gap-lg">
+<div class="flex justify-between items-start">
+<div>
+<span class="font-label text-label text-primary font-bold uppercase tracking-wider">Active Incident</span>
+<h3 class="font-display text-display text-on-surface mt-xs">Sarah Jenkins</h3>
+<p class="font-body text-body text-on-surface-variant">North Lincoln Ave &amp; W Fullerton Pkwy</p>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label text-label text-on-surface-variant">Last signal: Just now</span>
+<span class="font-mono text-mono text-primary font-bold">41.9250° N, 87.6441° W</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="p-md bg-background border border-outline-variant rounded-lg">
+<div class="flex items-center gap-sm text-on-surface-variant mb-xs">
+<span class="material-symbols-outlined text-[20px]">battery_charging_80</span>
+<span class="font-label text-label">Battery</span>
+</div>
+<p class="font-h2 text-h2">82%</p>
+</div>
+<div class="p-md bg-background border border-outline-variant rounded-lg">
+<div class="flex items-center gap-sm text-on-surface-variant mb-xs">
+<span class="material-symbols-outlined text-[20px]">signal_cellular_4_bar</span>
+<span class="font-label text-label">Signal</span>
+</div>
+<p class="font-h2 text-h2">Strong</p>
+</div>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="font-label text-label font-bold uppercase text-on-surface-variant">Trigger Reason</h4>
+<div class="flex gap-md p-md bg-error-container/20 border border-error/20 rounded-lg items-center">
+<span class="material-symbols-outlined text-error" data-weight="fill">magic_button</span>
+<p class="font-body text-body text-on-surface">Physical SOS button press detected. Audio recording started automatically.</p>
+</div>
+</div>
+<div class="mt-auto pt-lg flex gap-md">
+<button class="flex-1 bg-primary text-on-primary font-bold py-md rounded-lg active:scale-95 transition-all shadow-md hover:brightness-110">
+                                    View Full Incident Details
+                                </button>
+<button class="px-xl border border-outline text-on-surface font-bold rounded-lg hover:bg-surface-variant transition-colors active:scale-95">
+                                    Call Sarah
+                                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.querySelectorAll('.cursor-pointer').forEach(card => {
+            card.addEventListener('click', () => {
+                // Remove active classes from others
+                document.querySelectorAll('.cursor-pointer').forEach(c => {
+                    c.classList.remove('border-primary', 'border-2');
+                    c.classList.add('border', 'border-outline-variant');
+                });
+                // Add active to this
+                card.classList.add('border-primary', 'border-2');
+                card.classList.remove('border', 'border-outline-variant');
+            });
+        });
+    </script>
+</body></html>

@@ -30,6 +30,11 @@ import LiveLocationScreen from "./features/alert/screens/LiveLocationScreen";
 // Feature: settings
 import SettingsScreen from "./features/settings/screens/SettingsScreen";
 
+// Feature: alerts (Trusted Contacts)
+import EmergencyAlertsScreen from "./features/alerts/screens/EmergencyAlertsScreen";
+import IncidentDetailsScreen from "./features/alerts/screens/IncidentDetailsScreen";
+import IncidentResolvedScreen from "./features/alerts/screens/IncidentResolvedScreen";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -60,6 +65,11 @@ export default function App() {
         {/* Alert */}
         <Route path="/alert" element={<AlertLandingScreen />} />
         <Route path="/alert/live" element={<LiveLocationScreen />} />
+
+        {/* Alerts (Trusted Contacts) */}
+        <Route path="/alerts" element={<EmergencyAlertsScreen />} />
+        <Route path="/alerts/:id" element={<IncidentDetailsScreen />} />
+        <Route path="/alerts/:id/resolved" element={<IncidentResolvedScreen />} />
 
         {/* Settings */}
         <Route path="/settings" element={<SettingsScreen />} />

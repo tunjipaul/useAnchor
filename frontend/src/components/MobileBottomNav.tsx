@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Activity, Users, Settings } from "lucide-react";
+import { Home, Activity, Users, Settings, Bell } from "lucide-react";
 
 export default function MobileBottomNav() {
   const navigate = useNavigate();
@@ -40,6 +40,17 @@ export default function MobileBottomNav() {
           className={`text-[10px] mt-1 ${currentPath === "/contacts" ? "font-bold" : "font-medium"}`}
         >
           Contacts
+        </span>
+      </button>
+      <button
+        onClick={() => navigate("/alerts")}
+        className={`flex flex-col items-center justify-center w-full h-full ${currentPath.includes("/alerts") ? "text-[#ac2d00]" : "text-[#5a413a]"}`}
+      >
+        <Bell size={24} />
+        <span
+          className={`text-[10px] mt-1 ${currentPath.includes("/alerts") ? "font-bold" : "font-medium"}`}
+        >
+          Alerts
         </span>
       </button>
       <button

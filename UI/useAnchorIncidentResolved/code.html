@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Incident Resolved | Anchor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed-dim": "#86ceff",
+                    "on-secondary-fixed": "#3b0900",
+                    "outline": "#8e7068",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#ffede8",
+                    "tertiary-container": "#007caf",
+                    "background": "#fff8f6",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#ffdbd1",
+                    "surface": "#fff8f6",
+                    "tertiary-fixed": "#c8e6ff",
+                    "on-tertiary-container": "#fcfcff",
+                    "surface-container-highest": "#f7ddd6",
+                    "secondary": "#954831",
+                    "primary": "#ac2d00",
+                    "on-background": "#261814",
+                    "surface-variant": "#f7ddd6",
+                    "surface-tint": "#b02f00",
+                    "tertiary": "#00628c",
+                    "error-container": "#ffdad6",
+                    "on-secondary-container": "#78321d",
+                    "on-primary-fixed": "#3b0900",
+                    "inverse-surface": "#3d2d28",
+                    "outline-variant": "#e2bfb5",
+                    "on-primary-container": "#fffbff",
+                    "on-error": "#ffffff",
+                    "surface-container": "#ffe9e4",
+                    "inverse-primary": "#ffb5a0",
+                    "on-secondary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#fff8f6",
+                    "secondary-fixed": "#ffdbd1",
+                    "primary-fixed-dim": "#ffb5a0",
+                    "primary-container": "#cf4519",
+                    "secondary-fixed-dim": "#ffb5a0",
+                    "on-tertiary": "#ffffff",
+                    "surface-dim": "#efd4ce",
+                    "surface-container-low": "#fff1ed",
+                    "secondary-container": "#ff9c80",
+                    "on-surface-variant": "#5a413a",
+                    "on-primary-fixed-variant": "#872100",
+                    "on-surface": "#261814",
+                    "on-tertiary-fixed": "#001e2e",
+                    "on-secondary-fixed-variant": "#77311c",
+                    "surface-container-high": "#fde2dc",
+                    "on-tertiary-fixed-variant": "#004c6d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "16px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "md": "12px",
+                    "xl": "24px",
+                    "4xl": "48px",
+                    "3xl": "40px",
+                    "2xl": "32px"
+            },
+            "fontFamily": {
+                    "h1": ["Hanken Grotesk"],
+                    "body-sm": ["Hanken Grotesk"],
+                    "display": ["Hanken Grotesk"],
+                    "body": ["Hanken Grotesk"],
+                    "label": ["Hanken Grotesk"],
+                    "mono": ["JetBrains Mono"],
+                    "h2": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "h1": ["22px", {"lineHeight": "28.6px", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "21px", "fontWeight": "400"}],
+                    "display": ["28px", {"lineHeight": "33.6px", "fontWeight": "600"}],
+                    "body": ["16px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "label": ["12px", {"lineHeight": "14.4px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+                    "mono": ["13px", {"lineHeight": "18.2px", "fontWeight": "400"}],
+                    "h2": ["18px", {"lineHeight": "25.2px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fff8f6;
+            font-family: 'Hanken Grotesk', sans-serif;
+            color: #261814;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .success-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.3; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- SideNavBar (Shared Component) -->
+<aside class="hidden md:flex flex-col h-screen p-md gap-sm bg-surface-container dark:bg-surface-container-lowest w-64 border-r border-outline-variant fixed left-0 top-0 z-50">
+<div class="flex items-center gap-md px-md mb-xl">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined">anchor</span>
+</div>
+<div>
+<h1 class="font-h2 text-h2 font-black text-primary dark:text-inverse-primary leading-tight">useAnchor</h1>
+<p class="font-label text-label text-on-surface-variant">Active Reliability</p>
+</div>
+</div>
+<nav class="flex flex-col gap-xs flex-grow">
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-body text-body">Home</span>
+</a>
+<a class="flex items-center gap-md bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-lg px-md py-sm font-bold active:translate-x-1" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="font-body text-body">Sessions</span>
+</a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body text-body">Circle</span>
+</a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1" href="#">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="font-body text-body">Alerts</span>
+</a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-surface-variant px-md py-sm hover:bg-surface-container-highest dark:hover:bg-inverse-surface transition-all active:translate-x-1" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body text-body">Settings</span>
+</a>
+</nav>
+<div class="mt-auto">
+<button class="w-full bg-primary text-on-primary py-md px-lg rounded-lg font-bold flex items-center justify-center gap-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined">emergency</span>
+                Emergency SOS
+            </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-grow md:ml-64 bg-surface min-h-screen flex flex-col items-center justify-center p-xl">
+<!-- Focused Incident Resolved Content -->
+<div class="max-w-4xl w-full">
+<!-- Header Section -->
+<div class="text-center mb-2xl">
+<div class="relative inline-block mb-lg">
+<div class="success-pulse absolute inset-0 bg-primary opacity-20 rounded-full scale-150"></div>
+<div class="relative w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-white text-[48px]" style="font-variation-settings: 'wght' 600;">check</span>
+</div>
+</div>
+<h1 class="font-display text-display text-on-surface mb-sm">User Is Safe</h1>
+<p class="font-body text-body text-on-surface-variant max-w-lg mx-auto">
+                    The emergency session for <span class="font-bold text-on-surface">Alex Rivera</span> has been resolved. All contacts have been notified that the situation is secure.
+                </p>
+</div>
+<!-- Bento Grid Summary -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md mb-xl">
+<!-- Summary Card 1: Resolution Time -->
+<div class="bg-surface-container-low border border-outline-variant p-xl rounded-xl flex flex-col gap-sm shadow-sm transition-all hover:border-primary">
+<span class="font-label text-label text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                        Resolution Time
+                    </span>
+<p class="font-h1 text-h1 text-on-surface">11:58 PM</p>
+</div>
+<!-- Summary Card 2: Incident Duration -->
+<div class="bg-surface-container-low border border-outline-variant p-xl rounded-xl flex flex-col gap-sm shadow-sm transition-all hover:border-primary">
+<span class="font-label text-label text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">timer</span>
+                        Incident Duration
+                    </span>
+<p class="font-h1 text-h1 text-on-surface">16 minutes</p>
+</div>
+<!-- Summary Card 3: Final Status -->
+<div class="bg-surface-container-low border border-outline-variant p-xl rounded-xl flex flex-col gap-sm shadow-sm transition-all hover:border-primary">
+<span class="font-label text-label text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+                        Final Status
+                    </span>
+<p class="font-h1 text-h1 text-primary">Manual Check-in</p>
+</div>
+</div>
+<!-- Activity Snapshot Section -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm mb-xl">
+<div class="px-xl py-lg border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<h2 class="font-h2 text-h2 flex items-center gap-sm">
+<span class="material-symbols-outlined">timeline</span>
+                        Activity Snapshot
+                    </h2>
+<span class="font-label text-label px-md py-xs bg-secondary-container text-on-secondary-container rounded-full">Archive ID: #SEC-9921</span>
+</div>
+<div class="p-xl space-y-lg relative">
+<!-- Timeline Line -->
+<div class="absolute left-[39px] top-xl bottom-xl w-[2px] bg-outline-variant opacity-50"></div>
+<!-- Timeline Item 1 -->
+<div class="flex gap-lg relative">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center z-10 shrink-0">
+<span class="material-symbols-outlined text-white text-[16px]">location_on</span>
+</div>
+<div class="flex flex-col gap-xs">
+<div class="flex items-center gap-sm">
+<p class="font-body text-body font-bold">Safe Location Reached</p>
+<span class="font-mono text-mono text-on-surface-variant">11:58 PM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">System confirmed entrance to "Home" geofence zone.</p>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="flex gap-lg relative">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center z-10 shrink-0">
+<span class="material-symbols-outlined text-on-secondary-container text-[16px]">call</span>
+</div>
+<div class="flex flex-col gap-xs">
+<div class="flex items-center gap-sm">
+<p class="font-body text-body font-bold">Circle Notification Sent</p>
+<span class="font-mono text-mono text-on-surface-variant">11:54 PM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Automated voice call dispatched to 3 primary contacts.</p>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="flex gap-lg relative">
+<div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center z-10 shrink-0">
+<span class="material-symbols-outlined text-on-error-container text-[16px]">priority_high</span>
+</div>
+<div class="flex flex-col gap-xs">
+<div class="flex items-center gap-sm">
+<p class="font-body text-body font-bold">SOS Triggered</p>
+<span class="font-mono text-mono text-on-surface-variant">11:42 PM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Manual SOS activated via lock screen long-press.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Final Actions -->
+<div class="flex flex-col md:flex-row gap-md justify-center items-center">
+<button class="w-full md:w-auto px-4xl py-lg bg-primary text-on-primary rounded-lg font-bold shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-sm">
+                    Return to Dashboard
+                    <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+<button class="w-full md:w-auto px-4xl py-lg bg-white border border-outline text-on-surface rounded-lg font-bold hover:bg-surface-container-low active:scale-95 transition-all flex items-center justify-center gap-sm">
+                    View Full Timeline
+                </button>
+</div>
+</div>
+</main>
+<!-- TopNavBar (Shared Component - Hidden on Desktop per logic, but shown for consistency if needed) -->
+<header class="flex justify-between items-center px-lg py-sm w-full sticky top-0 z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline md:hidden">
+<div class="font-h1 text-h1 font-bold text-primary dark:text-inverse-primary">Anchor</div>
+<div class="flex gap-md">
+<span class="material-symbols-outlined text-primary">notifications</span>
+<span class="material-symbols-outlined text-primary">emergency_share</span>
+</div>
+</header>
+<script>
+        // Micro-interaction: Hover effects for summary cards
+        const cards = document.querySelectorAll('.bg-surface-container-low');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.classList.add('shadow-md');
+                card.style.transform = 'translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {</script></body></html>
