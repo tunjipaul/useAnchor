@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Edit2, LogOut, Trash2, ArrowLeft, Bell, Siren, User, Lock, Mic,
-  MapPin, AlertCircle, Info, Home, Activity, Users, Settings, ChevronRight,
+  MapPin, AlertCircle, Info, Users, Settings, ChevronRight,
 } from "lucide-react";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
