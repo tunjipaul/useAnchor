@@ -143,7 +143,7 @@ export default function SessionTimelineScreen() {
   return (
     <div className="flex-grow flex flex-col items-center justify-start overflow-y-auto w-full min-h-[100dvh] bg-[#FAFAF7] text-[#261814]">
       {/* TopAppBar */}
-      <header className="fixed top-0 w-full max-w-[390px] z-50 bg-[#fff8f6] border-b border-[#e2bfb5] shadow-sm px-4 h-[64px] flex justify-between items-center">
+      <header className="fixed top-0 w-full z-50 bg-[#fff8f6] border-b border-[#e2bfb5] shadow-sm px-4 h-[64px] flex justify-between items-center">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center active:scale-95 transition-transform text-[#5a413a]">
             <ArrowLeft size={24} />
@@ -155,7 +155,7 @@ export default function SessionTimelineScreen() {
         </div>
       </header>
 
-      <main className="mt-[64px] mb-[80px] p-4 flex flex-col gap-4 max-w-[390px] w-full mx-auto">
+      <main className="mt-[64px] mb-[80px] p-4 flex flex-col gap-4 max-w-[500px] w-full mx-auto">
         {/* Summary Card */}
         <section className="bg-white border border-[#e2bfb5] rounded-xl p-4 custom-card-shadow">
           <div className="flex justify-between items-start mb-3">

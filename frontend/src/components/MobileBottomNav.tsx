@@ -8,7 +8,7 @@ export default function MobileBottomNav() {
   const currentPath = location.pathname;
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-[#e2bfb5] flex justify-around items-center h-[70px] pb-safe z-50 md:hidden">
+    <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-[#e2bfb5] flex justify-around items-center h-[70px] pb-safe z-50 lg:hidden">
       <button
         onClick={() => navigate("/dashboard")}
         className={`flex flex-col items-center justify-center w-full h-full ${currentPath === "/dashboard" ? "text-[#ac2d00]" : "text-[#5a413a]"}`}

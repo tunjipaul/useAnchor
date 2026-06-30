@@ -22,6 +22,8 @@ import {
   XCircle,
 } from "lucide-react";
 import MobileBottomNav from "../../../components/MobileBottomNav";
+import DesktopHeader from "../../../components/DesktopHeader";
+import DesktopSidebar from "../../../components/DesktopSidebar";
 import { sessionStore } from "../../session/utils/sessionStore";
 import type { SessionData } from "../../session/utils/sessionStore";
 
@@ -81,9 +83,9 @@ export default function HomeScreen() {
   return (
     <div className="min-h-screen flex flex-col w-full bg-[#fff8f6]">
       {/* ========================================== */}
-      {/*         MOBILE LAYOUT (md:hidden)          */}
+      {/*         MOBILE LAYOUT (lg:hidden)          */}
       {/* ========================================== */}
-      <div className="block md:hidden flex-1 flex flex-col items-center justify-start px-4">
+      <div className="block lg:hidden flex-1 flex flex-col items-center justify-start px-4">
         {/* Mobile wrapper */}
         <main className="w-full max-w-[390px] min-h-[700px] flex flex-col justify-between pt-8 pb-[100px] space-y-6">
           {/* Header */}
@@ -246,89 +248,12 @@ export default function HomeScreen() {
         <MobileBottomNav />
       </div>
 
+
+      {/*        DESKTOP LAYOUT (hidden lg:flex)     */}
       {/* ========================================== */}
-      {/*        DESKTOP LAYOUT (hidden md:flex)     */}
-      {/* ========================================== */}
-      <div className="hidden md:flex flex-col flex-grow relative w-full">
-        {/* Top Header */}
-        <header className="fixed top-0 left-0 w-full h-16 bg-white border-b border-[#e2bfb5] flex justify-between items-center px-6 z-50">
-          <div className="flex items-center gap-2">
-            <span className="text-[22px] font-bold tracking-tight text-[#ac2d00]">
-              useAnchor
-            </span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            {/* Status bar */}
-            <div className="flex items-center gap-2 bg-[#fff1ed] px-4 py-1.5 rounded-full border border-[#e2bfb5]">
-              <span className="w-2.5 h-2.5 bg-[#ac2d00] rounded-full animate-ping" />
-              <span className="text-[14px] font-bold text-[#ac2d00]">
-                Monitoring Active
-              </span>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button
-                aria-label="Notifications"
-                className="text-[#5a413a] hover:text-[#ac2d00] relative"
-              >
-                <Bell size={20} />
-              </button>
-              <div
-                className="w-10 h-10 rounded-full overflow-hidden border shadow-sm cursor-pointer"
-                style={{ borderColor: "#e2bfb5" }}
-              >
-                <img
-                  className="w-full h-full object-cover"
-                  alt="Profile"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5UvSkhV6Enqdm-RJHui5mvajYH1wZHhspIMcgjhkLLlFDn4WJrR6gm6Q4AAQd8Kw_QSzUb2QfNk_wkYTd2My9aBekog97vLNKkrU6vyrxdr-V8v3tjE8GtlnCLdpOlY6rsalrs4PXF3YEtYeJuwob3v9mxYkhXVOI9vQDi0NPFnz6ANY4dAFMxsbQncYSXKRPN_ExLyn-0dQL-eh9bkNFDrwsDHw53ZFwJEXsXNiOvkKZ5jDTRibZR73MSLE8J-XfzMXaCKal6MI"
-                />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Sidebar Nav */}
-        <nav
-          className="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 flex flex-col p-4 bg-[#fff8f6] border-r z-50"
-          style={{ borderColor: "#e2bfb5" }}
-        >
-          <div className="flex flex-col gap-1 flex-grow">
-            <button className="flex items-center gap-3 px-4 py-3 bg-[#ffe9e4] text-[#ac2d00] font-bold rounded-lg cursor-pointer transition-all w-full text-left">
-              <Home size={20} />
-              <span className="text-[14px]">Home</span>
-            </button>
-            <button
-              onClick={() => navigate("/session/new")}
-              className="flex items-center gap-3 px-4 py-3 text-[#5a413a] hover:bg-[#fff1ed] font-medium rounded-lg cursor-pointer transition-all w-full text-left"
-            >
-              <Activity size={20} />
-              <span className="text-[14px]">Sessions</span>
-            </button>
-            <button
-              onClick={() => navigate("/contacts")}
-              className="flex items-center gap-3 px-4 py-3 text-[#5a413a] hover:bg-[#fff1ed] font-medium rounded-lg cursor-pointer transition-all w-full text-left"
-            >
-              <Users size={20} />
-              <span className="text-[14px]">Contacts</span>
-            </button>
-            <button
-              onClick={() => navigate("/settings")}
-              className="flex items-center gap-3 px-4 py-3 text-[#5a413a] hover:bg-[#fff1ed] font-medium rounded-lg cursor-pointer transition-all w-full text-left"
-            >
-              <Settings size={20} />
-              <span className="text-[14px]">Settings</span>
-            </button>
-          </div>
-
-          <button
-            onClick={() => navigate("/session/sos")}
-            className="mt-auto w-full py-3 bg-[#ac2d00] hover:bg-[#8a2400] text-white font-bold rounded-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all shadow-md shadow-[0_0_14px_rgba(172,45,0,0.5)]"
-          >
-            <Siren size={18} />
-            <span>Start SOS</span>
-          </button>
-        </nav>
+      <div className="hidden lg:flex flex-col min-h-screen">
+        <DesktopHeader />
+        <DesktopSidebar />
 
         {/* Desktop Main Content Container */}
         <main className="ml-64 mt-16 flex-grow h-[calc(100vh-64px)] overflow-y-auto bg-[#fff8f6] p-8">
@@ -446,7 +371,7 @@ export default function HomeScreen() {
 
                       {/* View Button */}
                       <button
-                        onClick={() => navigate("/session/timeline/active")}
+                        onClick={() => navigate("/session/active")}
                         className="mt-6 w-full py-3 border-2 rounded-lg font-bold transition-all flex items-center justify-center gap-2 hover:bg-[#ac2d00]/5 active:scale-95 text-[#ac2d00]"
                         style={{ borderColor: "#ac2d00" }}
                       >
@@ -608,22 +533,7 @@ export default function HomeScreen() {
           </div>
         </main>
 
-        {/* Floating SOS Trigger Button */}
-        <div className="fixed bottom-6 right-6 z-50 group">
-          <div className="absolute inset-0 bg-[#ac2d00]/40 rounded-full animate-ping scale-150" />
-          <button
-            onClick={() => navigate("/session/sos")}
-            className="w-20 h-20 bg-[#ac2d00] text-white rounded-full shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-transform hover:scale-105"
-          >
-            <Siren size={30} className="text-white" />
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">
-              SOS
-            </span>
-          </button>
-          <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#ac2d00] text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
-            Trigger Emergency Alert
-          </div>
-        </div>
+
       </div>
     </div>
   );
