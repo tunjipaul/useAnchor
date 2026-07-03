@@ -16,10 +16,11 @@ For a full technical design overview, refer to the [useAnchor Technical Specific
 4. [Routing & Screen Directory](#4-routing--screen-directory)
 5. [System Architecture Overview](#5-system-architecture-overview)
 6. [Database Schema](#6-database-schema)
-7. [Environment Variables](#7-environment-variables)
-8. [Project Structure](#8-project-structure)
-9. [Development Setup](#9-development-setup)
-10. [Future Backend Integration Guidelines](#10-future-backend-integration-guidelines)
+7. [Current Backend Implementation Status](#7-current-backend-implementation-status)
+8. [Environment Variables](#8-environment-variables)
+9. [Project Structure](#9-project-structure)
+10. [Development Setup](#10-development-setup)
+11. [Future Backend Integration Guidelines](#11-future-backend-integration-guidelines)
 
 ---
 
@@ -69,8 +70,17 @@ Instead of routing immediately to emergency services, useAnchor focuses on a use
 - **Validation & Math**: [Zod](https://zod.dev/) & [react-hook-form](https://react-hook-form.com/)
 - **Phone Processing**: `react-phone-number-input` & `libphonenumber-js`
 - **Target Backend**: [Supabase](https://supabase.com/) (PostgreSQL + RLS + pg_cron + Edge Functions + Realtime subscriptions)
-- **Notification Services**: Firebase Cloud Messaging (FCM) & Twilio SMS API fallback
+- **Auth SMS Provider**: Supabase Phone Auth with dashboard Test OTPs in development and TextLocal in production
 
+---
+
+## Auth Implementation
+
+Development authentication uses Supabase Test Phone Numbers & OTPs configured in the Supabase dashboard under Authentication -> Providers -> Phone -> Test OTPs. This bypasses real SMS delivery while preserving the same Supabase phone auth code path used in production.
+
+Production authentication uses Supabase Phone Auth with TextLocal configured as the SMS provider. Removing dashboard test numbers switches real users to real OTP delivery without frontend changes.
+
+Frontend auth should stay behind a single `AuthService` abstraction implemented by `SupabaseAuthService`, using Supabase native `signInWithOtp` and `verifyOtp` calls. There is no separate mock implementation for development.
 ---
 
 ## 4. Routing & Screen Directory
@@ -129,9 +139,9 @@ All frontend screens are mapped to distinct React Router paths inside [App.tsx](
               ┌─────────────────────────────────────┤
               │                                     │
 ┌─────────────▼──────────┐           ┌──────────────▼────────┐
-│   Firebase FCM          │           │   Twilio SMS          │
-│   Push Notifications    │           │   Fallback Channel    │
-│   (Primary Route)       │           │   (Direct SMS Links)  │
+│   Firebase FCM          │           │   Provider Queue          │
+│   Push Notifications    │           │   Deferred Delivery    │
+│   (Primary Route)       │           │   (Post-MVP Provider)  │
 └────────────────────────┘           └───────────────────────┘
 ```
 
@@ -178,7 +188,30 @@ For backend deployment, useAnchor relies on the following schema structures:
 
 ---
 
-## 7. Environment Variables
+## 7. Current Backend Implementation Status
+
+The backend has moved beyond a planned CRUD schema. The current implementation is a Supabase/PostgreSQL safety engine where safety-critical state changes are handled through transactional PL/pgSQL RPC functions instead of frontend-side mutations.
+
+Implemented backend domains:
+
+- **Session lifecycle engine**: `start_anchor_session`, `schedule_anchor_session`, `cancel_anchor_session`, and `complete_anchor_session` enforce valid transitions across draft, scheduled, active, emergency, cancelled, and completed sessions.
+- **Check-in engine**: `create_checkins_for_session`, `mark_checkin_completed`, `mark_checkin_missed`, and `skip_checkin` generate scheduled check-ins, record responses, and trigger escalation for missed check-ins.
+- **Alert and escalation engine**: `trigger_alert`, `resolve_alert`, and `cancel_alert` create emergency alerts, move sessions into emergency state, resolve incidents, and guard against duplicate active alerts.
+- **Trusted contact snapshot engine**: `add_session_contacts`, `link_trusted_contact_to_profile`, and `acknowledge_alert` preserve immutable per-session contact snapshots while still supporting contact profile linking.
+- **Notification pipeline engine**: `queue_alert_recipients`, `mark_recipient_sent`, `mark_recipient_delivered`, and `mark_recipient_failed` track queued, sent, delivered, failed, and retry states per alert recipient.
+- **Audit foundation**: `log_audit_event` records actor, event category, event type, entity references, metadata, and correlation IDs for forensic traceability.
+
+Critical runtime work still pending:
+
+- `checkin-scheduler-worker` Edge Function to detect overdue check-ins and call `mark_checkin_missed`.
+- `alert-notification-worker` Edge Function to consume `alert_recipients` and send push/SMS/email notifications.
+- Correlation ID injection for scheduled worker execution cycles.
+- Supabase Realtime subscriptions for session, check-in, and alert state changes.
+- Frontend hooks that call RPCs directly, such as `useAnchorSession`, `useCheckins`, and `useAlerts`.
+
+---
+
+## 8. Environment Variables
 
 ### Frontend Environment (`frontend/.env`)
 Create a `.env` file in the frontend root to connect services:
@@ -195,9 +228,6 @@ VITE_FIREBASE_APP_ID=<app-id>
 ### Backend Secrets (`supabase secrets set ...`)
 Provide these variables to Supabase Edge Functions:
 ```env
-TWILIO_ACCOUNT_SID=<twilio-account-sid>
-TWILIO_AUTH_TOKEN=<twilio-auth-token>
-TWILIO_PHONE_NUMBER=<twilio-phone-number>
 FIREBASE_PROJECT_ID=<firebase-project-id>
 FIREBASE_CLIENT_EMAIL=<firebase-service-account-email>
 FIREBASE_PRIVATE_KEY=<firebase-private-key>
@@ -205,7 +235,7 @@ FIREBASE_PRIVATE_KEY=<firebase-private-key>
 
 ---
 
-## 8. Project Structure
+## 9. Project Structure
 
 ```
 useAnchor/
@@ -242,7 +272,7 @@ useAnchor/
 
 ---
 
-## 9. Development Setup
+## 10. Development Setup
 
 ### ⚙️ Prerequisites
 - [Node.js](https://nodejs.org/) v20 or higher
@@ -269,11 +299,11 @@ useAnchor/
 
 ---
 
-## 10. Future Backend Integration Guidelines
+## 11. Future Backend Integration Guidelines
 
 Keep the following database requirements in mind when transitioning from client storage to live database configurations:
 
 ### 🌍 E.164 Phone Formatting Standard
 - **Enforced Format**: All phone numbers stored in the `profiles` or `trusted_contacts` tables must conform strictly to the international **E.164 standard** (e.g. `+2348031234567` for Nigeria, or `+15550000000` for North America).
 - **Validation**: Ensure the validation layer validates and converts input numbers to standard strings before posting to Supabase tables.
-- **Why it matters**: Direct integrations (Twilio Verify, Twilio SMS fallback channels, Firebase verification payloads) will fail or route incorrectly if dial codes are omitted or spaces/hyphens remain.
+- **Why it matters**: Direct integrations (Supabase Phone Auth, TextLocal OTP delivery, Firebase notification payloads) will fail or route incorrectly if dial codes are omitted or spaces/hyphens remain.

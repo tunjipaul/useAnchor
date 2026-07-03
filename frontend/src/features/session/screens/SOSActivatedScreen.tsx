@@ -8,32 +8,112 @@ import {
   Shield,
   Phone,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
-import { sessionStore } from "../utils/sessionStore";
-import type { SessionData } from "../utils/sessionStore";
+import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function SOSActivatedScreen() {
   const navigate = useNavigate();
-  const [session, setSession] = useState<SessionData | null>(null);
+  const user = useAuthStore((state) => state.user);
+  const [session, setSession] = useState<any | null>(null);
+  const [activeAlert, setActiveAlert] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
 
   useEffect(() => {
-    const stored = sessionStore.getActiveSession();
-    if (stored) {
-      setSession(stored);
-    } else {
-      // Should not really happen if triggered correctly, but fallback to dashboard
-      navigate("/dashboard");
+    async function loadSOSData() {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        const { data: sessionData, error: sessionError } = await supabase
+          .from("anchor_sessions")
+          .select(`
+            *,
+            session_contacts (
+              id,
+              name,
+              phone
+            )
+          `)
+          .eq("user_id", user.id)
+          .eq("status", "emergency")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (sessionError) throw sessionError;
+
+        if (sessionData) {
+          setSession({
+            id: sessionData.id,
+            title: sessionData.title,
+            startedAt: sessionData.actual_start || sessionData.created_at,
+            durationMinutes: sessionData.checkin_interval_minutes || 30,
+            sosTriggeredAt: sessionData.emergency_started_at || sessionData.updated_at,
+            contacts: sessionData.session_contacts || [],
+          });
+
+          const { data: alertData } = await supabase
+            .from("alerts")
+            .select("id")
+            .eq("session_id", sessionData.id)
+            .eq("status", "active")
+            .limit(1)
+            .maybeSingle();
+
+          if (alertData) {
+            setActiveAlert(alertData);
+          }
+        } else {
+          navigate("/dashboard");
+        }
+      } catch (e) {
+        console.error("Error loading SOS data", e);
+        navigate("/dashboard");
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [navigate]);
+    loadSOSData();
+  }, [user, navigate]);
+
+  async function handleSafeNow() {
+    if (!activeAlert || !user) return;
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.rpc("cancel_alert", {
+        p_user_id: user.id,
+        p_alert_id: activeAlert.id,
+      });
+
+      if (error) throw error;
+      navigate("/dashboard");
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to cancel active safety alarm.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#fff8f6] flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-[#ac2d00]" size={36} />
+        <p className="text-[14px] text-[#5a413a] font-medium animate-pulse">Syncing safety coordinates...</p>
+      </div>
+    );
+  }
 
   if (!session) return null;
-
-  function handleSafeNow() {
-    // Revert status to active but keep SOS timestamp for history
-    const updatedSession = { ...session, status: 'active' as const } as SessionData;
-    sessionStore.setActiveSession(updatedSession);
-    navigate("/session/active");
-  }
 
   const primaryContact = session.contacts[0] || { name: 'Emergency Contact', phone: '' };
 
@@ -99,7 +179,7 @@ export default function SOSActivatedScreen() {
           <div className="space-y-3 pt-2">
             <h3 className="text-[16px] font-bold text-[#261814]">Who was notified</h3>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {session.contacts.map((contact) => (
+              {session.contacts.map((contact: any) => (
                 <div key={contact.id} className="min-w-[110px] bg-white border border-[#e2bfb5] rounded-xl p-3 shadow-sm flex flex-col items-center text-center gap-2">
                   <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#ffe9e4] bg-[#fde2dc] flex items-center justify-center shrink-0">
                     {contact.avatarUrl ? (
@@ -145,6 +225,20 @@ export default function SOSActivatedScreen() {
           </span>
         </div>
       </main>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#261814] text-[#fff8f6] px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 max-w-[90%] w-[340px] text-center justify-center font-semibold text-[13px] border border-[#e2bfb5]/20"
+          >
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

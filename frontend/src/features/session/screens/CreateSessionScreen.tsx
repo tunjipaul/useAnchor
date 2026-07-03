@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,8 +11,13 @@ import {
   Shield,
   Clock,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
-import { sessionStore, type SessionData } from "../utils/sessionStore";
+import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { useSession } from "../hooks/useSession";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
 
 interface Contact {
   id: string;
@@ -24,6 +29,8 @@ interface Contact {
 
 export default function CreateSessionScreen() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const { createAndStartSession, isLoading: isCreating } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
 
   // Form State
@@ -46,37 +53,51 @@ export default function CreateSessionScreen() {
   const [customDuration, setCustomDuration] = useState(false);
 
   // Contacts State
-  const [contacts, setContacts] = useState<Contact[]>([
-    {
-      id: "1",
-      name: "Sarah Jenkins",
-      phone: "+1 (555) 012-3456",
-      avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuC0XAtUoG-NICXp0MdrIDLjr-lJRx0tdxNx7mOEJteJkBPSMXfgKpzwn4GG5VACRwZRoKNMUWA4lHUf9MUts6VnAGFawKU7p9DN_Axrgi3Ogq4gixy6J4kWn1_ZioCd5eml5zXPcQ5A8dmAQD0uKTfCr9a8-_f8YBmo4zqZGYJzpa75-6a0N02HhKQjr3jIJdWx5UqF380a48GqeAp4xfTqGxjXPpBNg8hrKqGxceIXKiGG0wE0ykkVxjZtGoScKlKZ4LDuxQGVfrM",
-      selected: false,
-    },
-    {
-      id: "2",
-      name: "David Chen",
-      phone: "+1 (555) 987-6543",
-      avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuD5SMzNYC9FrPEt6RymcfLaMRC3QJLbKy_pxaLFO7S3M9FKFKriAR40V-xJKm1mXBwKk6z6TEt8g8xIlhPqe__TMCXy3hRGnaoUyb2UUyStTiI9pnRanFZEGHaoL6hpo9pGuTlvBSpythlnv-q7C_vt8bbWSdbv4A99QPsg2aXcWL3IxrP7ZemyNFTbD_6kfkx4d0eRcQos4KKKA-EnBQBoqPLiLE1sTPE3pJjcsyhTXAeqneISeYFIEqytdpbE7Q9RdC5B5hUqxTU",
-      selected: true,
-    },
-    {
-      id: "3",
-      name: "Marcus Miller",
-      phone: "+1 (555) 234-5678",
-      selected: false,
-    },
-  ]);
-
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [_isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
-
+  const [addContactError, setAddContactError] = useState<string | null>(null);
+  const [startSessionError, setStartSessionError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
 
+  // Fetch active contacts from database on mount
+  useEffect(() => {
+    async function loadContacts() {
+      if (!user) return;
+      setIsLoadingContacts(true);
+      const { data, error } = await supabase
+        .from("trusted_contacts")
+        .select(`
+          id,
+          name,
+          phone,
+          linked_profile:linked_profile_id (
+            avatar_url
+          )
+        `)
+        .eq("user_id", user.id)
+        .is("deleted_at", null);
+      
+      setIsLoadingContacts(false);
+      if (!error && data) {
+        setContacts(
+          data.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            phone: c.phone,
+            avatarUrl: c.linked_profile?.avatar_url || undefined,
+            selected: false,
+          }))
+        );
+      }
+    }
+    loadContacts();
+  }, [user]);
+
   // Step Validation
-  const isStep1Valid = title.trim() !== "" && location.trim() !== "";
+  const isStep1Valid = title.trim() !== "" && location.trim() !== "" && personName.trim() !== "" && phone.trim() !== "";
   const selectedContactsCount = contacts.filter((c) => c.selected).length;
   const isStep2Valid = selectedContactsCount > 0;
 
@@ -100,38 +121,71 @@ export default function CreateSessionScreen() {
     );
   }
 
-  function handleAddNewContact() {
-    if (newContactName.trim() === "" || newContactPhone.trim() === "") return;
-    const newContact: Contact = {
-      id: Math.random().toString(),
-      name: newContactName.trim(),
-      phone: newContactPhone.trim(),
-      selected: true,
-    };
-    setContacts((prev) => [...prev, newContact]);
-    setNewContactName("");
-    setNewContactPhone("");
-    setShowAddContact(false);
+  async function handleAddNewContact() {
+    if (newContactName.trim() === "" || newContactPhone.trim() === "" || !user) return;
+    setAddContactError(null);
+
+    // Validate phone number using libphonenumber-js
+    const phoneObj = parsePhoneNumberFromString(newContactPhone.trim(), "US");
+    if (!phoneObj || !phoneObj.isValid()) {
+      setAddContactError("Please enter a valid phone number in international format (e.g. +234...).");
+      return;
+    }
+    const formattedPhone = phoneObj.number;
+    
+    setIsLoadingContacts(true);
+    // Add to DB
+    const { data, error } = await supabase
+      .from("trusted_contacts")
+      .insert({
+        user_id: user.id,
+        name: newContactName.trim(),
+        phone: formattedPhone,
+      })
+      .select()
+      .single();
+
+    setIsLoadingContacts(false);
+
+    if (error) {
+      setAddContactError(getFriendlyErrorMessage(error, "Failed to add contact."));
+    } else if (data) {
+      const newContact: Contact = {
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        selected: true,
+      };
+      setContacts((prev) => [...prev, newContact]);
+      setNewContactName("");
+      setNewContactPhone("");
+      setAddContactError(null);
+      setShowAddContact(false);
+    }
   }
 
-  function handleStartSession() {
-    const activeSession: SessionData = {
-      id: sessionStore.generateId(),
-      title,
-      personName,
-      phone,
-      location,
-      date,
-      time,
-      notes,
-      durationMinutes,
-      contacts: contacts.filter((c) => c.selected),
-      startedAt: new Date().toISOString(),
-      status: 'active',
-      checkIns: [],
-    };
-    sessionStore.setActiveSession(activeSession);
-    navigate("/session/active", { state: { session: activeSession } });
+  async function handleStartSession() {
+    if (!user) return;
+    setStartSessionError(null);
+    try {
+      const selectedContactIds = contacts.filter((c) => c.selected).map((c) => c.id);
+      
+      const sessionId = await createAndStartSession(
+        {
+          title,
+          meet_person: personName || undefined,
+          meet_phone: phone || undefined,
+          destination_address: location || undefined,
+          durationMinutes,
+          notes: notes || undefined,
+        },
+        selectedContactIds
+      );
+
+      navigate(`/session/active?id=${sessionId}`);
+    } catch (e: any) {
+      setStartSessionError(getFriendlyErrorMessage(e, "Could not start safety session."));
+    }
   }
 
   return (
@@ -203,7 +257,7 @@ export default function CreateSessionScreen() {
                       </label>
                       <input
                         className="w-full h-12 px-4 bg-white border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] rounded-lg text-[16px] outline-none transition-all"
-                        placeholder="Optional"
+                        placeholder="e.g. Alex"
                         type="text"
                         value={personName}
                         onChange={(e) => setPersonName(e.target.value)}
@@ -215,7 +269,7 @@ export default function CreateSessionScreen() {
                       </label>
                       <input
                         className="w-full h-12 px-4 bg-white border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] rounded-lg text-[16px] outline-none transition-all"
-                        placeholder="Optional"
+                        placeholder="e.g. +234..."
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
@@ -366,7 +420,10 @@ export default function CreateSessionScreen() {
 
                       {/* Add new contact button */}
                       <button
-                        onClick={() => setShowAddContact(!showAddContact)}
+                        onClick={() => {
+                          setAddContactError(null);
+                          setShowAddContact(!showAddContact);
+                        }}
                         className="px-4 py-2.5 bg-white text-[#ac2d00] rounded-full border border-dashed border-[#ac2d00] text-[14px] font-medium flex items-center gap-1.5 hover:bg-[#ffe9e4] transition-all"
                       >
                         <Plus size={16} />
@@ -410,6 +467,11 @@ export default function CreateSessionScreen() {
                             onChange={(e) => setNewContactPhone(e.target.value)}
                             className="w-full h-10 px-3 rounded-lg border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] text-[14px] outline-none"
                           />
+                          {addContactError && (
+                            <div className="text-[12px] font-bold text-[#ba1a1a] bg-[#ffdad6]/40 p-2.5 rounded-lg text-left leading-tight">
+                              {addContactError}
+                            </div>
+                          )}
                           <button
                             onClick={handleAddNewContact}
                             className="w-full h-10 bg-[#ac2d00] text-white text-[14px] font-semibold rounded-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-transform"
@@ -561,6 +623,11 @@ export default function CreateSessionScreen() {
 
         {/* Footer Actions */}
         <footer className="px-2 pt-4 space-y-3 w-full">
+          {startSessionError && (
+            <div className="text-[13px] font-bold text-[#ba1a1a] bg-[#ffdad6]/40 p-3 rounded-lg text-left leading-tight">
+              {startSessionError}
+            </div>
+          )}
           {currentStep < 3 ? (
             <button
               onClick={nextStep}
@@ -577,10 +644,19 @@ export default function CreateSessionScreen() {
           ) : (
             <button
               onClick={handleStartSession}
-              className="w-full h-12 bg-[#E8562A] hover:bg-[#d0451a] text-white font-bold text-[17px] rounded-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              disabled={isCreating}
+              className={`w-full h-12 text-white font-bold text-[17px] rounded-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-lg shadow-primary/20 ${
+                isCreating ? "bg-[#e2bfb5] cursor-not-allowed" : "bg-[#E8562A] hover:bg-[#d0451a]"
+              }`}
             >
-              <span>Start Anchor Session</span>
-              <Shield size={18} />
+              {isCreating ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <>
+                  <span>Start Anchor Session</span>
+                  <Shield size={18} />
+                </>
+              )}
             </button>
           )}
 

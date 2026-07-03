@@ -5,11 +5,15 @@ import { ArrowLeft, ArrowRight, Lock, Loader2 } from "lucide-react";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { useAuthStore } from "../stores/useAuthStore";
+import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
 
 export default function PhoneNumberEntryScreen() {
   const navigate = useNavigate();
+  const signInWithOtp = useAuthStore((state) => state.signInWithOtp);
   const [phoneNumber, setPhoneNumber] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Validate the phone number using libphonenumber-js
   const phoneNumberObj = phoneNumber ? parsePhoneNumberFromString(phoneNumber) : null;
@@ -21,17 +25,21 @@ export default function PhoneNumberEntryScreen() {
 
   const isButtonDisabled = !isValid || isLoading;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || !phoneNumber) return;
 
     setIsLoading(true);
+    setErrorMsg(null);
 
-    // Simulate OTP sending
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await signInWithOtp(phoneNumber);
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMsg(getFriendlyErrorMessage(error, "Failed to send verification code. Please check the number or try again later."));
+    } else {
       navigate("/auth/verify", { state: { phoneNumber } });
-    }, 1200);
+    }
   }
 
   return (
@@ -104,6 +112,13 @@ export default function PhoneNumberEntryScreen() {
             {showError && (
               <p className="text-[14px] leading-5 px-1 font-medium" style={{ color: "#ba1a1a" }}>
                 Please enter a valid phone number.
+              </p>
+            )}
+
+            {/* API Error Message */}
+            {errorMsg && (
+              <p className="text-[14px] leading-5 px-1 font-medium" style={{ color: "#ba1a1a" }}>
+                {errorMsg}
               </p>
             )}
 

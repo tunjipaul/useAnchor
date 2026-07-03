@@ -7,26 +7,75 @@ import {
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
 import MobileBottomNav from "../../../components/MobileBottomNav";
-import { alertStore, type AlertData } from "../utils/alertStore";
+import { supabase } from "../../../lib/supabase";
 
 export default function IncidentResolvedScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [alert, setAlert] = useState<AlertData | null>(null);
+  const [alert, setAlert] = useState<any | null>(null);
 
   useEffect(() => {
-    if (id) {
-      const found = alertStore.getAlertById(id);
-      if (found && found.status === 'resolved') {
-        setAlert(found);
-      } else if (found) {
-        // If still active, go to details
-        navigate(`/alerts/${id}`, { replace: true });
-      } else {
-        // Not found
+    async function loadResolvedAlert() {
+      if (!id) return;
+      try {
+        const { data, error } = await supabase
+          .from("alerts")
+          .select(`
+            id,
+            status,
+            trigger_type,
+            created_at,
+            resolved_at,
+            resolution_reason,
+            resolution_notes,
+            session_id,
+            profile:user_id (
+              full_name
+            )
+          `)
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          if (data.status !== "active") {
+            const durationMin = data.resolved_at && data.created_at
+              ? Math.max(1, Math.round((new Date(data.resolved_at).getTime() - new Date(data.created_at).getTime()) / 60000))
+              : 0;
+              
+            const reasonMap: Record<string, string> = {
+              user_safe_entry: "Safe check-in",
+              contact_verified_safe: "Contact verified",
+              owner_resolved: "Resolved by owner",
+              system_resolved: "System resolved",
+            };
+
+            setAlert({
+              id: data.id,
+              sessionId: data.session_id,
+              userName: (data.profile as any)?.full_name || "Unknown User",
+              triggeredAt: data.created_at,
+              resolvedAt: data.resolved_at,
+              triggerReason: data.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
+              status: data.status,
+              resolutionTime: data.resolved_at ? new Date(data.resolved_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Unknown",
+              incidentDuration: `${durationMin} minutes`,
+              finalStatus: reasonMap[data.resolution_reason || ""] || data.resolution_reason || "Resolved",
+              notes: data.resolution_notes || ""
+            });
+          } else {
+            navigate(`/alerts/${id}`, { replace: true });
+          }
+        } else {
+          navigate("/alerts");
+        }
+      } catch (e) {
+        console.error("Failed to load resolved alert:", e);
         navigate("/alerts");
       }
     }
+    loadResolvedAlert();
   }, [id, navigate]);
 
   if (!alert) return null;
@@ -101,7 +150,7 @@ export default function IncidentResolvedScreen() {
                          <p className="text-[16px] font-bold text-[#261814]">Safe Location Reached</p>
                          <span className="text-[13px] font-mono text-[#5a413a]">{alert.resolutionTime || "11:58 PM"}</span>
                       </div>
-                      <p className="text-[14px] text-[#5a413a]">System confirmed entrance to "Home" geofence zone.</p>
+                      <p className="text-[14px] text-[#5a413a]">{alert.notes || 'Incident concluded securely.'}</p>
                    </div>
                 </div>
 
@@ -112,9 +161,11 @@ export default function IncidentResolvedScreen() {
                    <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                          <p className="text-[16px] font-bold text-[#261814]">Circle Notification Sent</p>
-                         <span className="text-[13px] font-mono text-[#5a413a]">11:54 PM</span>
+                         <span className="text-[13px] font-mono text-[#5a413a]">
+                           {new Date(alert.triggeredAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                         </span>
                       </div>
-                      <p className="text-[14px] text-[#5a413a]">Automated voice call dispatched to 3 primary contacts.</p>
+                      <p className="text-[14px] text-[#5a413a]">Emergency alerts dispatched to safety circle.</p>
                    </div>
                 </div>
 
@@ -127,7 +178,7 @@ export default function IncidentResolvedScreen() {
                          <p className="text-[16px] font-bold text-[#261814]">SOS Triggered</p>
                          <span className="text-[13px] font-mono text-[#5a413a]">{new Date(alert.triggeredAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </div>
-                      <p className="text-[14px] text-[#5a413a]">Manual SOS activated via lock screen long-press.</p>
+                      <p className="text-[14px] text-[#5a413a]">Manual or auto-escalation SOS activated.</p>
                    </div>
                 </div>
              </div>
@@ -136,14 +187,14 @@ export default function IncidentResolvedScreen() {
           {/* Final Actions */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
              <button 
-               onClick={() => navigate("/alerts")}
+               onClick={() => navigate("/dashboard")}
                className="w-full sm:w-auto px-8 py-4 bg-[#ac2d00] text-white rounded-lg font-bold shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
              >
                 Return to Dashboard
                 <ArrowRight size={20} />
              </button>
              <button 
-               onClick={() => navigate("/alerts")} // For MVP, just back to dashboard
+               onClick={() => alert.sessionId && navigate(`/session/timeline/${alert.sessionId}`)}
                className="w-full sm:w-auto px-8 py-4 bg-white border border-[#8e7068] text-[#261814] rounded-lg font-bold hover:bg-[#fff1ed] active:scale-95 transition-all flex items-center justify-center gap-2"
              >
                 View Full Timeline

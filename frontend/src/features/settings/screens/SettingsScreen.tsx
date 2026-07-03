@@ -1,17 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Edit2, LogOut, Trash2, ArrowLeft, Bell, Siren, User, Lock, Mic,
-  MapPin, AlertCircle, Info, Users, Settings, ChevronRight,
+  LogOut, Trash2, ArrowLeft, Bell, Siren, User, Lock, Mic,
+  MapPin, AlertCircle, Info, Users, Settings, ChevronRight, Loader2,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
 
 type SettingsTab = "profile" | "contacts" | "notifications" | "voice" | "power" | "privacy" | "about";
 
 export default function SettingsScreen() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const profile = useAuthStore((state) => state.profile);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+  const logout = useAuthStore((state) => state.logout);
+
+  const [fullName, setFullName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  useEffect(() => {
+    if (profile?.full_name) {
+      setFullName(profile.full_name);
+    }
+  }, [profile]);
 
   // Mobile state
   const [reminders, setReminders] = useState(true);
@@ -30,6 +53,35 @@ export default function SettingsScreen() {
     { key: "power", label: "Power Button Trigger", Icon: Siren },
     { key: "privacy", label: "Privacy", Icon: Lock },
   ];
+
+  async function handleSaveChanges() {
+    if (!fullName.trim()) {
+      triggerToast("Full Name cannot be empty.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const { error } = await updateProfile({
+        full_name: fullName.trim(),
+      });
+      if (error) throw error;
+      triggerToast("Profile saved successfully!");
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to save profile changes.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      const { error } = await logout();
+      if (error) throw error;
+      navigate("/");
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to log out.");
+    }
+  }
 
   return (
     <div className="bg-[#fff8f6] text-[#261814] min-h-screen">
@@ -75,41 +127,71 @@ export default function SettingsScreen() {
             {/* Avatar row */}
             <div className="flex items-center gap-4 pb-5 border-b border-[#e2bfb5]">
               <div className="relative">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#ffdbd1]">
-                  <img
-                    className="w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6odC1f_aBrxp-V8UlmHpxYb1kObRaSF16YD2PzjIP_SinQ5-YFO59DRAYKnyEA3lVOQtupdvEf2vXdJdbCvzXtWRintpm9341jxxUltycvta6RsWSpaFpcVW3NM2BR4MOdDcsk224hIR4PmOzdliYYs7rY7QOwyzJINsiH-CV6hk4rA-e0NsNfwMquyFIaVIOng9L9U89YP4LvPZisaD5T7F5ZVlFzbBQcSW3gnX2A0n5DHhUw-NMx6yNwTE4_WM64lAVSiSR7Rs"
-                    alt="Sarah Mitchell"
-                  />
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#ffdbd1] bg-[#ffe9e4] flex items-center justify-center">
+                  {profile?.avatar_url ? (
+                    <img
+                      className="w-full h-full object-cover"
+                      src={profile.avatar_url}
+                      alt={profile.full_name || "User avatar"}
+                    />
+                  ) : (
+                    <User className="text-[#ac2d00]" size={28} />
+                  )}
                 </div>
-                <button className="absolute -bottom-1 -right-1 p-1 bg-[#ac2d00] text-white rounded-full border-2 border-white shadow-md">
-                  <Edit2 size={12} />
-                </button>
               </div>
               <div>
-                <h3 className="text-[16px] font-semibold text-[#261814]">Sarah Mitchell</h3>
-                <p className="text-[13px] text-[#5a413a]">Member since Jan 2024</p>
+                <h3 className="text-[16px] font-semibold text-[#261814]">{profile?.full_name || "User"}</h3>
+                <p className="text-[13px] text-[#5a413a]">Member since {new Date(profile?.created_at || Date.now()).toLocaleDateString([], { month: 'short', year: 'numeric' })}</p>
               </div>
             </div>
             {/* Form fields */}
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a] block">Full Name</label>
-                <input className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] bg-[#fff8f6] text-[#261814] outline-none transition-all text-[15px]" type="text" defaultValue="Sarah Mitchell" />
+                <input
+                  className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] bg-[#fff8f6] text-[#261814] outline-none transition-all text-[15px]"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={isSaving}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a] block">Email Address</label>
-                <input className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] bg-[#fff8f6] text-[#261814] outline-none transition-all text-[15px]" type="email" defaultValue="sarah.m@guardian.com" />
+                <input
+                  className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl bg-gray-100 text-[#5a413a] outline-none text-[15px] cursor-not-allowed"
+                  type="email"
+                  value={user?.email || "No email linked"}
+                  disabled
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a] block">Phone Number</label>
-                <input className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] bg-[#fff8f6] text-[#261814] outline-none transition-all text-[15px]" type="tel" defaultValue="+1 (555) 012-3456" />
+                <input
+                  className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl bg-gray-100 text-[#5a413a] outline-none text-[15px] cursor-not-allowed"
+                  type="tel"
+                  value={user?.phone || ""}
+                  disabled
+                />
               </div>
             </div>
             {/* Save/Cancel */}
             <div className="flex gap-3 pt-2 border-t border-[#e2bfb5]">
-              <button className="flex-1 py-3 text-[#5a413a] font-bold border border-[#e2bfb5] rounded-xl hover:bg-[#fff1ed] transition-colors text-[15px]">Cancel</button>
-              <button className="flex-1 py-3 bg-[#ac2d00] text-white font-bold rounded-xl hover:bg-[#8a2400] active:scale-[0.98] transition-all text-[15px]">Save Changes</button>
+              <button
+                onClick={() => setFullName(profile?.full_name || "")}
+                disabled={isSaving}
+                className="flex-1 py-3 text-[#5a413a] font-bold border border-[#e2bfb5] rounded-xl hover:bg-[#fff1ed] transition-colors text-[15px] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveChanges}
+                disabled={isSaving}
+                className="flex-1 py-3 bg-[#ac2d00] text-white font-bold rounded-xl hover:bg-[#8a2400] active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isSaving && <Loader2 size={16} className="animate-spin" />}
+                <span>Save Changes</span>
+              </button>
             </div>
           </section>
 
@@ -212,7 +294,7 @@ export default function SettingsScreen() {
           <div className="space-y-2">
             <h3 className="text-[12px] font-bold tracking-wider uppercase text-[#5a413a] px-1">Account</h3>
             <div className="bg-white rounded-xl border border-[#e2bfb5] overflow-hidden">
-              <button onClick={() => navigate("/")} className="w-full p-4 flex items-center gap-3 border-b border-[#e2bfb5] hover:bg-[#fff1ed] transition-colors text-[#ac2d00] text-[16px]">
+              <button onClick={handleLogout} className="w-full p-4 flex items-center gap-3 border-b border-[#e2bfb5] hover:bg-[#fff1ed] transition-colors text-[#ac2d00] text-[16px]">
                 <LogOut size={20} />
                 Sign out
               </button>
@@ -267,8 +349,8 @@ export default function SettingsScreen() {
                   <span className="text-[15px]">About</span>
                 </button>
                 <button
-                  onClick={() => navigate("/")}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#ba1a1a] hover:bg-[#ffdad6] transition-all text-left"
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#ba1a1a] hover:bg-[#ffdad6] transition-all text-left w-full animate-hover"
                 >
                   <LogOut size={20} />
                   <span className="text-[15px]">Logout</span>
@@ -288,63 +370,66 @@ export default function SettingsScreen() {
                     {/* Avatar + Info */}
                     <div className="flex items-center gap-6 pb-8 border-b border-[#e2bfb5]">
                       <div className="relative">
-                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#ffdbd1]">
-                          <img
-                            className="w-full h-full object-cover"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6odC1f_aBrxp-V8UlmHpxYb1kObRaSF16YD2PzjIP_SinQ5-YFO59DRAYKnyEA3lVOQtupdvEf2vXdJdbCvzXtWRintpm9341jxxUltycvta6RsWSpaFpcVW3NM2BR4MOdDcsk224hIR4PmOzdliYYs7rY7QOwyzJINsiH-CV6hk4rA-e0NsNfwMquyFIaVIOng9L9U89YP4LvPZisaD5T7F5ZVlFzbBQcSW3gnX2A0n5DHhUw-NMx6yNwTE4_WM64lAVSiSR7Rs"
-                            alt="Sarah Mitchell"
-                          />
+                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#ffdbd1] bg-[#ffe9e4] flex items-center justify-center">
+                          {profile?.avatar_url ? (
+                            <img
+                              className="w-full h-full object-cover"
+                              src={profile.avatar_url}
+                              alt={profile.full_name || "User avatar"}
+                            />
+                          ) : (
+                            <User className="text-[#ac2d00]" size={42} />
+                          )}
                         </div>
-                        <button className="absolute bottom-0 right-0 p-1.5 bg-[#ac2d00] text-white rounded-full border-2 border-white shadow-md">
-                          <Edit2 size={12} />
-                        </button>
                       </div>
-                      <div>
-                        <h3 className="text-[18px] font-semibold text-[#261814]">Sarah Mitchell</h3>
-                        <p className="text-[14px] text-[#5a413a]">Member since Jan 2024</p>
-
+                      <div className="text-left">
+                        <h3 className="text-[18px] font-semibold text-[#261814]">{profile?.full_name || "User"}</h3>
+                        <p className="text-[14px] text-[#5a413a]">Member since {new Date(profile?.created_at || Date.now()).toLocaleDateString([], { month: 'short', year: 'numeric' })}</p>
                       </div>
                     </div>
 
                     {/* Form Grid */}
                     <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 text-left">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a] block ml-1">Full Name</label>
                         <input
                           className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] bg-[#fff8f6] text-[#261814] outline-none transition-all"
                           type="text"
-                          defaultValue="Sarah Mitchell"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          disabled={isSaving}
                         />
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 text-left">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a] block ml-1">Email Address</label>
                         <input
-                          className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] bg-[#fff8f6] text-[#261814] outline-none transition-all"
+                          className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl bg-gray-100 text-[#5a413a] outline-none cursor-not-allowed"
                           type="email"
-                          defaultValue="sarah.m@guardian.com"
+                          value={user?.email || "No email linked"}
+                          disabled
                         />
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 text-left">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a] block ml-1">Phone Number</label>
                         <input
-                          className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] bg-[#fff8f6] text-[#261814] outline-none transition-all"
+                          className="w-full px-3 py-3 border border-[#e2bfb5] rounded-xl bg-gray-100 text-[#5a413a] outline-none cursor-not-allowed"
                           type="tel"
-                          defaultValue="+1 (555) 012-3456"
+                          value={user?.phone || ""}
+                          disabled
                         />
                       </div>
-
                     </div>
 
                     {/* Safety Preferences */}
                     <div>
-                      <h2 className="text-[18px] font-semibold text-[#261814] mb-4">Safety Preferences</h2>
+                      <h2 className="text-[18px] font-semibold text-[#261814] mb-4 text-left">Safety Preferences</h2>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-4 rounded-xl border border-[#e2bfb5] hover:bg-[#fff1ed] transition-colors">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[#007caf]/10 flex items-center justify-center text-[#007caf]">
                               <AlertCircle size={20} />
                             </div>
-                            <div>
+                            <div className="text-left">
                               <p className="text-[15px] font-bold text-[#261814]">Critical Alert Notifications</p>
                               <p className="text-[13px] text-[#5a413a]">Allow sound even if Do Not Disturb is active</p>
                             </div>
@@ -364,7 +449,7 @@ export default function SettingsScreen() {
                             <div className="w-10 h-10 rounded-full bg-[#ac2d00]/10 flex items-center justify-center text-[#ac2d00]">
                               <MapPin size={20} />
                             </div>
-                            <div>
+                            <div className="text-left">
                               <p className="text-[15px] font-bold text-[#261814]">Background Location Access</p>
                               <p className="text-[13px] text-[#5a413a]">Required for tracking during active sessions</p>
                             </div>
@@ -384,11 +469,20 @@ export default function SettingsScreen() {
 
                     {/* Footer Actions */}
                     <div className="flex justify-end gap-3 pt-6 border-t border-[#e2bfb5]">
-                      <button className="px-6 py-3 text-[#5a413a] font-bold hover:bg-[#fff1ed] rounded-xl transition-colors">
+                      <button
+                        onClick={() => setFullName(profile?.full_name || "")}
+                        disabled={isSaving}
+                        className="px-6 py-3 text-[#5a413a] font-bold hover:bg-[#fff1ed] rounded-xl transition-colors disabled:opacity-50"
+                      >
                         Cancel
                       </button>
-                      <button className="px-6 py-3 bg-[#ac2d00] text-white font-bold rounded-xl shadow-md hover:bg-[#8a2400] active:scale-95 transition-all">
-                        Save Changes
+                      <button
+                        onClick={handleSaveChanges}
+                        disabled={isSaving}
+                        className="px-6 py-3 bg-[#ac2d00] text-white font-bold rounded-xl shadow-md hover:bg-[#8a2400] active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {isSaving && <Loader2 size={16} className="animate-spin" />}
+                        <span>Save Changes</span>
                       </button>
                     </div>
                   </div>
@@ -456,6 +550,20 @@ export default function SettingsScreen() {
 
 
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#261814] text-[#fff8f6] px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 max-w-[90%] w-[340px] text-center justify-center font-semibold text-[13px] border border-[#e2bfb5]/20"
+          >
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

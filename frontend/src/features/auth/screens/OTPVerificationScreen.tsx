@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { useAuthStore } from "../stores/useAuthStore";
+import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
 
 export default function OTPVerificationScreen() {
   const navigate = useNavigate();
@@ -9,10 +11,14 @@ export default function OTPVerificationScreen() {
   const state = location.state as { phoneNumber?: string } | undefined;
   const phoneNumber = state?.phoneNumber ?? "(555) 000-0000";
 
+  const verifyOtp = useAuthStore((state) => state.verifyOtp);
+  const signInWithOtp = useAuthStore((state) => state.signInWithOtp);
+
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [timeLeft, setTimeLeft] = useState(45);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Countdown timer for resending OTP
@@ -53,27 +59,41 @@ export default function OTPVerificationScreen() {
     }
   }
 
-  function handleResend() {
+  async function handleResend() {
+    if (phoneNumber === "(555) 000-0000") return;
     setTimeLeft(45);
-    // Add logic to trigger sending code again
+    setErrorMsg(null);
+    const { error } = await signInWithOtp(phoneNumber);
+    if (error) {
+      setErrorMsg(getFriendlyErrorMessage(error, "Failed to resend verification code."));
+    }
   }
 
-  function handleVerify() {
+  async function handleVerify() {
     const code = otp.join("");
     if (code.length !== 6) return;
 
     setIsLoading(true);
+    setErrorMsg(null);
 
-    // Simulate OTP validation
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await verifyOtp(phoneNumber, code);
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMsg(getFriendlyErrorMessage(error, "Invalid verification code. Please check and try again."));
+    } else {
       setIsSuccess(true);
 
-      // Navigate to profile setup after short success representation
+      // Navigate to correct page based on onboarding status
       setTimeout(() => {
-        navigate("/auth/profile-setup");
+        const profile = useAuthStore.getState().profile;
+        if (profile?.onboarding_completed) {
+          navigate("/dashboard");
+        } else {
+          navigate("/auth/profile-setup");
+        }
       }, 1000);
-    }, 1200);
+    }
   }
 
   const isVerifyDisabled = otp.some((val) => val === "") || isLoading || isSuccess;
@@ -152,6 +172,13 @@ export default function OTPVerificationScreen() {
               />
             ))}
           </div>
+
+          {/* Error Message */}
+          {errorMsg && (
+            <p className="text-[14px] leading-5 text-center px-1 font-medium mb-6" style={{ color: "#ba1a1a" }}>
+              {errorMsg}
+            </p>
+          )}
 
           {/* Contextual Links */}
           <div className="flex flex-col items-center gap-4">

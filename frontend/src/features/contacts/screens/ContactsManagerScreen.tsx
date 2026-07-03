@@ -1,64 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, UserPlus, Search, MoreVertical, Plus, X,
   Info,
-  Edit2, Trash2, MapPin, EyeOff,
+  Edit2, Trash2, MapPin, EyeOff
 } from "lucide-react";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
+import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
+import { motion, AnimatePresence } from "framer-motion";
 
 type RelationshipTag = "Family" | "Friend" | "Colleague" | "Work" | null;
 
-// Hardcoded initial contacts
-const initialContacts = [
-  {
-    id: "1",
-    firstName: "Albert",
-    lastName: "Thompson",
-    phone: "+1 (555) 012-3456",
-    tag: "Family" as RelationshipTag,
-    isPrimary: true,
-    status: "active" as const,
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuDOSgdEP21gMIHb-xdNYa1ALTCC7JZ_HRORNajbQKgT4f08i9bvaz9A167W-dh5RAT10iWZIoXWij0oFHbU8a-wGI11F_KX9Fk17VozhtbRsLar3UIgE_Fa5GpjdDtRkPnwA_tT51wbCVT-sKo0mYRLa2YY5mvy-HziBVCEK_SMAhKX9kH7VwAHqLF3lTeWJPbKLYsZxjmvH8kXdlERx6TXwoQ-XZi4xuabZq2QITpZEAoIaWY87RaZB6iO2xWOVdsjoGvBzgl-IqQ",
-  },
-  {
-    id: "2",
-    firstName: "Amanda",
-    lastName: "Lee",
-    phone: "+1 (555) 012-7890",
-    tag: "Work" as RelationshipTag,
-    isPrimary: false,
-    status: "disabled" as const,
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuA4RULsH1j5KU8BQSxEmtAR1czT5ei-2vyNSGUuZizt8ra5sGXL1luUGesHFIlgMqEO0iF5c6PN4qFOoLvnNYf46aQ0-O8hq5z3UkxJwdPFUiKVQZzosuunx6kkEkkT4JEJsw-bZgOHsMr3XvEW5jZE5RCkM0fUa8KjxdOo2fdowiKXHAcPW13aXIYcsNZ3zL-5-XtOp3ge6lkp3S24y1pxlWsTNPLc28jAerZVvKz7Pj5zNUQ4jywdXbixctNpTFtZQb9n4F0x6SQ",
-  },
-  {
-    id: "3",
-    firstName: "Marcus",
-    lastName: "Chen",
-    phone: "+1 (555) 019-2233",
-    tag: "Friend" as RelationshipTag,
-    isPrimary: false,
-    status: "active" as const,
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuD3MYDyL6M5GtrFBRnNC-y1dVgVCOEOQdDPzis04e25Encbf5mh01xrxNNa-sUDp8zeFuJTlYP5rc7ON-wGdX-xI1i42JDWZzdQJPqRJtiq6IwZHmSoPrCx0OjaAsQaTrBFgPsiS9BPGLWiDs8Kg_ls9LKFhmIaDcY0grXXErJbFPwA5RI0d7Efmp8UuqS3W7oYdBh5qLO7juIXvdskO2aL1NaeMmGZPUUe-gGMKM0dTcmi-insVjJkCVovl95nifIozSiWnUDrmj8",
-  },
-  {
-    id: "4",
-    firstName: "Sarah",
-    lastName: "Jenkins",
-    phone: "+1 (555) 014-4455",
-    tag: "Family" as RelationshipTag,
-    isPrimary: false,
-    status: "active" as const,
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuBXJeud92R6pTwdWSDy3JFjo3dJ7hwV1acRbCRUZnRJkJAe7ObIWwCQzrWVi8Uv2q7zhCe4SLRiSFI5o82NdxBmnARVLyraNBWnwSZrKYeQX6aNZIGYRUhJumenOF4VkSBLjHhGE_OBYkXHlGucZrm40fpg8N0b2SGBEf7zb1qf0cO8aDoTTg0TdsqW8d0jODb01SeL67x4HxML5eKPQ5dk3y-eCArl2KRGNS61P8j_QlBPFldz0AfNRyYgsGnWfCV_4vNZNFsFCAg",
-  },
-];
-
 export default function ContactsManagerScreen() {
   const navigate = useNavigate();
-  const [contacts, setContacts] = useState(initialContacts);
+  const user = useAuthStore((state) => state.user);
+
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [_isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [_errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
 
   // Mobile modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,65 +50,145 @@ export default function ContactsManagerScreen() {
   const [drawerPhone, setDrawerPhone] = useState("");
   const [drawerTag, setDrawerTag] = useState<RelationshipTag>(null);
   const [drawerIsPrimary, setDrawerIsPrimary] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
-  const handleDeleteContact = (id: string) => {
-    setContacts(contacts.filter((c) => c.id !== id));
-    setActiveDropdown(null);
+  // Fetch contacts from Supabase
+  const fetchContacts = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from("trusted_contacts")
+      .select(`
+        id,
+        name,
+        phone,
+        relationship,
+        is_active,
+        linked_profile:linked_profile_id (
+          avatar_url
+        )
+      `)
+      .eq("user_id", user.id)
+      .is("deleted_at", null);
+
+    setIsLoading(false);
+    if (!error && data) {
+      const mapped = data.map((c: any) => {
+        const parts = c.name.split(" ");
+        return {
+          id: c.id,
+          firstName: parts[0] || "Unknown",
+          lastName: parts.slice(1).join(" ") || "",
+          phone: c.phone,
+          tag: c.relationship as RelationshipTag,
+          isPrimary: false,
+          status: c.is_active ? ("active" as const) : ("disabled" as const),
+          avatar: c.linked_profile?.avatar_url || "https://via.placeholder.com/150",
+        };
+      });
+      setContacts(mapped);
+    }
   };
 
-  const handleAddContactClick = async () => {
-    if ("contacts" in navigator && "ContactsManager" in window) {
-      try {
-        const props = ["name", "tel"];
-        const opts = { multiple: false };
-        const supported = await (navigator as any).contacts.select(props, opts);
-        if (supported && supported.length > 0) {
-          const contact = supported[0];
-          const nameParts = contact.name?.[0]?.split(" ") || ["Unknown"];
-          setContacts([
-            ...contacts,
-            {
-              id: Date.now().toString(),
-              firstName: nameParts[0],
-              lastName: nameParts.slice(1).join(" "),
-              phone: contact.tel?.[0] || "",
-              tag: null,
-              isPrimary: false,
-              status: "active" as const,
-              avatar: "https://via.placeholder.com/150",
-            },
-          ]);
-          return;
-        }
-      } catch {
-        /* fall through */
-      }
+  useEffect(() => {
+    fetchContacts();
+  }, [user]);
+
+  const handleDeleteContact = async (id: string) => {
+    if (!user) return;
+    setErrorMsg(null);
+    const { error } = await supabase
+      .from("trusted_contacts")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      triggerToast(error.message || "Failed to delete contact.");
+    } else {
+      setContacts(contacts.filter((c) => c.id !== id));
+      setActiveDropdown(null);
     }
+  };
+
+  const handleAddContactClick = () => {
+    setSelectedContactId(null);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
-  const handleSaveManualContact = () => {
-    if (!newFirstName.trim() || !newPhone.trim()) return;
-    setContacts([
-      ...contacts,
-      {
-        id: Date.now().toString(),
-        firstName: newFirstName.trim(),
-        lastName: newLastName.trim(),
-        phone: newPhone.trim(),
-        tag: null,
-        isPrimary: false,
-        status: "active" as const,
-        avatar: "https://via.placeholder.com/150",
-      },
-    ]);
-    setNewFirstName("");
-    setNewLastName("");
-    setNewPhone("");
-    setIsModalOpen(false);
+  const handleSaveManualContact = async () => {
+    if (!user) return;
+    setModalError(null);
+    if (!newFirstName.trim()) {
+      setModalError("First Name is required.");
+      return;
+    }
+    if (!newPhone.trim()) {
+      setModalError("Phone Number is required.");
+      return;
+    }
+
+    // Validate phone (fall back to US country code if local format is provided)
+    const phoneObj = parsePhoneNumberFromString(newPhone.trim(), "US");
+    if (!phoneObj || !phoneObj.isValid()) {
+      setModalError("Please enter a valid phone number in international format (e.g. +234...).");
+      return;
+    }
+    const formattedPhone = phoneObj.number;
+
+    setIsLoading(true);
+    const fullName = `${newFirstName.trim()} ${newLastName.trim()}`.trim();
+
+    const { data, error } = await supabase
+      .from("trusted_contacts")
+      .insert({
+        user_id: user.id,
+        name: fullName,
+        phone: formattedPhone,
+      })
+      .select(`
+        id,
+        name,
+        phone,
+        relationship,
+        is_active,
+        linked_profile:linked_profile_id (
+          avatar_url
+        )
+      `)
+      .single();
+
+    setIsLoading(false);
+
+    if (error) {
+      setModalError(getFriendlyErrorMessage(error, "Failed to save contact."));
+    } else if (data) {
+      const parts = data.name.split(" ");
+      setContacts([
+        ...contacts,
+        {
+          id: data.id,
+          firstName: parts[0] || "Unknown",
+          lastName: parts.slice(1).join(" ") || "",
+          phone: data.phone,
+          tag: data.relationship as RelationshipTag,
+          isPrimary: false,
+          status: data.is_active ? ("active" as const) : ("disabled" as const),
+          avatar: (data.linked_profile as any)?.avatar_url || "https://via.placeholder.com/150",
+        },
+      ]);
+      setNewFirstName("");
+      setNewLastName("");
+      setNewPhone("");
+      setModalError(null);
+      setIsModalOpen(false);
+    }
   };
 
   const openDrawerForAdd = () => {
+    setSelectedContactId(null);
+    setDrawerError(null);
     setDrawerTitle("Add New Contact");
     setDrawerFullName("");
     setDrawerPhone("");
@@ -141,29 +197,128 @@ export default function ContactsManagerScreen() {
     setIsDrawerOpen(true);
   };
 
-  const openDrawerForEdit = (name: string) => {
-    setDrawerTitle(`Edit ${name}`);
-    setDrawerFullName(name);
+  const openDrawerForEdit = (contact: any) => {
+    setSelectedContactId(contact.id);
+    setDrawerError(null);
+    setDrawerTitle(`Edit ${contact.firstName} ${contact.lastName}`);
+    setDrawerFullName(`${contact.firstName} ${contact.lastName}`);
+    setDrawerPhone(contact.phone);
+    setDrawerTag(contact.tag);
+    setDrawerIsPrimary(contact.isPrimary);
     setIsDrawerOpen(true);
   };
 
-  const handleSaveDrawerContact = () => {
-    if (!drawerFullName.trim() || !drawerPhone.trim()) return;
-    const parts = drawerFullName.trim().split(" ");
-    setContacts([
-      ...contacts,
-      {
-        id: Date.now().toString(),
-        firstName: parts[0],
-        lastName: parts.slice(1).join(" "),
-        phone: drawerPhone.trim(),
-        tag: drawerTag,
-        isPrimary: drawerIsPrimary,
-        status: "active" as const,
-        avatar: "https://via.placeholder.com/150",
-      },
-    ]);
-    setIsDrawerOpen(false);
+  const handleSaveDrawerContact = async () => {
+    if (!user) return;
+    setDrawerError(null);
+    if (!drawerFullName.trim()) {
+      setDrawerError("Full Name is required.");
+      return;
+    }
+    if (!drawerPhone.trim()) {
+      setDrawerError("Phone Number is required.");
+      return;
+    }
+
+    // Validate phone (fall back to US country code if local format is provided)
+    const phoneObj = parsePhoneNumberFromString(drawerPhone.trim(), "US");
+    if (!phoneObj || !phoneObj.isValid()) {
+      setDrawerError("Please enter a valid phone number in international format (e.g. +234...).");
+      return;
+    }
+    const formattedPhone = phoneObj.number;
+
+    setIsLoading(true);
+
+    if (selectedContactId) {
+      // Edit mode
+      const { data, error } = await supabase
+        .from("trusted_contacts")
+        .update({
+          name: drawerFullName.trim(),
+          phone: formattedPhone,
+          relationship: drawerTag,
+        })
+        .eq("id", selectedContactId)
+        .eq("user_id", user.id)
+        .select(`
+          id,
+          name,
+          phone,
+          relationship,
+          is_active,
+          linked_profile:linked_profile_id (
+            avatar_url
+          )
+        `)
+        .single();
+
+      setIsLoading(false);
+
+      if (error) {
+        setDrawerError(getFriendlyErrorMessage(error, "Failed to update contact."));
+      } else if (data) {
+        const parts = data.name.split(" ");
+        setContacts(
+          contacts.map((c) =>
+            c.id === selectedContactId
+              ? {
+                  ...c,
+                  firstName: parts[0] || "Unknown",
+                  lastName: parts.slice(1).join(" ") || "",
+                  phone: data.phone,
+                  tag: data.relationship as RelationshipTag,
+                  avatar: (data.linked_profile as any)?.avatar_url || "https://via.placeholder.com/150",
+                }
+              : c
+          )
+        );
+        setIsDrawerOpen(false);
+      }
+    } else {
+      // Add mode
+      const { data, error } = await supabase
+        .from("trusted_contacts")
+        .insert({
+          user_id: user.id,
+          name: drawerFullName.trim(),
+          phone: formattedPhone,
+          relationship: drawerTag,
+        })
+        .select(`
+          id,
+          name,
+          phone,
+          relationship,
+          is_active,
+          linked_profile:linked_profile_id (
+            avatar_url
+          )
+        `)
+        .single();
+
+      setIsLoading(false);
+
+      if (error) {
+        setDrawerError(getFriendlyErrorMessage(error, "Failed to save contact."));
+      } else if (data) {
+        const parts = data.name.split(" ");
+        setContacts([
+          ...contacts,
+          {
+            id: data.id,
+            firstName: parts[0] || "Unknown",
+            lastName: parts.slice(1).join(" ") || "",
+            phone: data.phone,
+            tag: data.relationship as RelationshipTag,
+            isPrimary: false,
+            status: data.is_active ? ("active" as const) : ("disabled" as const),
+            avatar: (data.linked_profile as any)?.avatar_url || "https://via.placeholder.com/150",
+          },
+        ]);
+        setIsDrawerOpen(false);
+      }
+    }
   };
 
   // Mobile: grouped by first letter
@@ -175,7 +330,7 @@ export default function ContactsManagerScreen() {
     if (!acc[letter]) acc[letter] = [];
     acc[letter].push(contact);
     return acc;
-  }, {} as Record<string, typeof initialContacts>);
+  }, {} as Record<string, any[]>);
   const sortedLetters = Object.keys(groupedContacts).sort();
 
   // Desktop filtered contacts
@@ -256,7 +411,7 @@ export default function ContactsManagerScreen() {
                     {letter}
                   </div>
                   <div className="space-y-2 mt-2">
-                    {groupedContacts[letter].map((contact) => (
+                    {groupedContacts[letter].map((contact: any) => (
                       <div
                         key={contact.id}
                         className="bg-[#fff8f6] border border-[#e2bfb5] rounded-lg p-3 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
@@ -336,6 +491,11 @@ export default function ContactsManagerScreen() {
                   <label className="block text-[12px] font-bold uppercase tracking-wider text-[#5a413a] mb-1">Phone Number <span className="text-[#ac2d00]">*</span></label>
                   <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full h-12 px-3 border border-[#e2bfb5] rounded-lg focus:ring-1 focus:ring-[#ac2d00] focus:border-[#ac2d00] outline-none" />
                 </div>
+                {modalError && (
+                  <div className="text-[13px] font-bold text-[#ba1a1a] bg-[#ffdad6]/40 p-3 rounded-lg text-left">
+                    {modalError}
+                  </div>
+                )}
               </div>
               <div className="p-6 pt-0 flex gap-3">
                 <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 font-bold text-[#5a413a] bg-[#fff8f6] border border-[#e2bfb5] rounded-xl active:scale-[0.98] transition-transform">
@@ -435,7 +595,7 @@ export default function ContactsManagerScreen() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => openDrawerForEdit(`${contact.firstName} ${contact.lastName}`)}
+                        onClick={() => openDrawerForEdit(contact)}
                         className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#e2bfb5] text-[#5a413a] hover:bg-[#ffe9e4] hover:text-[#ac2d00] transition-all"
                       >
                         <Edit2 size={15} />
@@ -564,6 +724,12 @@ export default function ContactsManagerScreen() {
                 </div>
               </div>
 
+              {drawerError && (
+                <div className="text-[13px] font-bold text-[#ba1a1a] bg-[#ffdad6]/40 p-3 rounded-lg text-left">
+                  {drawerError}
+                </div>
+              )}
+
               <div className="flex gap-3 pt-6">
                 <button
                   type="button"
@@ -584,6 +750,20 @@ export default function ContactsManagerScreen() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#261814] text-[#fff8f6] px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 max-w-[90%] w-[340px] text-center justify-center font-semibold text-[13px] border border-[#e2bfb5]/20"
+          >
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

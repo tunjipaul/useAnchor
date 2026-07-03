@@ -20,22 +20,85 @@ import {
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
-import { sessionStore } from "../../session/utils/sessionStore";
-import type { SessionData } from "../../session/utils/sessionStore";
+import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
 
 export default function HomeScreen() {
   const navigate = useNavigate();
-  const userName = "Sarah Mitchell";
+  const user = useAuthStore((state) => state.user);
+  const profile = useAuthStore((state) => state.profile);
+  const userName = profile?.full_name || "User";
 
-  // State for simulated timer on desktop view
-  const [seconds, setSeconds] = useState(18 * 60 + 40);
+  const [activeSession, setActiveSession] = useState<any | null>(null);
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [_isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    async function loadDashboardData() {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        // 1. Fetch active session
+        const { data: activeData, error: activeError } = await supabase
+          .from("anchor_sessions")
+          .select("id, title, destination_address, expected_end, checkin_interval_minutes, actual_start, status")
+          .eq("user_id", user.id)
+          .in("status", ["active", "emergency"])
+          .is("deleted_at", null) // exclude soft deleted sessions
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!activeError && activeData) {
+          setActiveSession(activeData);
+        } else {
+          setActiveSession(null);
+        }
+
+        // 2. Fetch recent historical sessions
+        const { data: historyData, error: historyError } = await supabase
+          .from("anchor_sessions")
+          .select("id, title, destination_address, status, created_at")
+          .eq("user_id", user.id)
+          .neq("status", "draft") // exclude drafts
+          .is("deleted_at", null) // exclude soft deleted sessions
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (!historyError && historyData) {
+          setRecentSessions(
+            historyData.map((s: any) => ({
+              id: s.id,
+              title: s.title,
+              location: s.destination_address || "Unknown Location",
+              date: new Date(s.created_at).toLocaleDateString(),
+              status: s.status,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Error loading dashboard data", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadDashboardData();
+  }, [user]);
+
+  // Countdown timer for active session
+  useEffect(() => {
+    if (!activeSession) return;
+    const end = new Date(activeSession.expected_end).getTime();
+    const updateTime = () => {
+      const now = Date.now();
+      setSecondsLeft(Math.max(0, Math.floor((end - now) / 1000)));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [activeSession]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -43,19 +106,10 @@ export default function HomeScreen() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const [recentSessions, setRecentSessions] = useState<SessionData[]>([]);
-
-  useEffect(() => {
-    setRecentSessions(sessionStore.getHistory());
-  }, []);
-
-  const getStatusConfig = (session: SessionData) => {
-    if (session.status === "sos") {
+  const getStatusConfig = (session: any) => {
+    if (session.status === "sos" || session.status === "emergency") {
       return {
-        label:
-          session.triggerType === "Missed Check-In"
-            ? "Missed Check-In Escalation"
-            : "SOS Triggered",
+        label: "SOS Triggered",
         color: "text-[#ba1a1a]",
         bg: "bg-[#ffdad6]/50",
         Icon: AlertTriangle,
@@ -113,38 +167,64 @@ export default function HomeScreen() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
             className="w-full p-5 rounded-2xl border bg-white flex items-center gap-4 shadow-sm"
-            style={{ borderColor: "#e2bfb5" }}
+            style={{ borderColor: activeSession && activeSession.status === 'emergency' ? '#ba1a1a' : '#e2bfb5' }}
           >
-            <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-[#ffe9e4]">
-              <Shield size={24} style={{ color: "#ac2d00" }} />
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+              activeSession 
+                ? activeSession.status === 'emergency' ? 'bg-[#ffdad6]' : 'bg-[#ac2d00]/10' 
+                : 'bg-[#ffe9e4]'
+            }`}>
+              <Shield size={24} style={{ color: activeSession && activeSession.status === 'emergency' ? '#ba1a1a' : '#ac2d00' }} />
             </div>
-            <div className="flex flex-col">
-              <span className="text-[18px] font-bold text-[#261814]">
-                You are currently Safe
-              </span>
-              <span className="text-[13px] text-[#5a413a]">
-                Anchor is inactive. Ready to start monitoring.
-              </span>
+            <div className="flex flex-col text-left">
+              {activeSession ? (
+                <>
+                  <span className={`text-[18px] font-bold flex items-center gap-1.5 ${activeSession.status === 'emergency' ? 'text-[#ba1a1a]' : 'text-[#ac2d00]'}`}>
+                    <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${activeSession.status === 'emergency' ? 'bg-[#ba1a1a]' : 'bg-[#ac2d00]'}`} />
+                    {activeSession.status === 'emergency' ? 'SOS / Emergency Active' : 'Monitoring Active'}
+                  </span>
+                  <span className="text-[13px] text-[#5a413a]">
+                    {activeSession.status === 'emergency' 
+                      ? `Safety alert triggered for ${activeSession.title}`
+                      : `Tracking check-ins for ${activeSession.title}`}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[18px] font-bold text-[#261814]">
+                    You are currently Safe
+                  </span>
+                  <span className="text-[13px] text-[#5a413a]">
+                    Anchor is inactive. Ready to start monitoring.
+                  </span>
+                </>
+              )}
             </div>
           </motion.div>
 
           {/* Primary CTA */}
           <div className="w-full">
             <button
-              onClick={() => navigate("/session/new")}
+              onClick={() => {
+                if (activeSession) {
+                  navigate(`/session/active?id=${activeSession.id}`);
+                } else {
+                  navigate("/session/new");
+                }
+              }}
               className="w-full h-24 bg-white border rounded-2xl p-5 flex items-center justify-between shadow-sm hover:bg-[#fff1ed] active:scale-[0.98] transition-all"
               style={{ borderColor: "#ac2d00" }}
             >
               <div className="flex items-center gap-4 text-left">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#ac2d00]">
-                  <Plus size={24} />
+                  {activeSession ? <Radio size={24} className="animate-pulse" /> : <Plus size={24} />}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[18px] font-bold text-[#261814]">
-                    Start Anchor Session
+                    {activeSession ? "View Active Session" : "Start Anchor Session"}
                   </span>
                   <span className="text-[13px] text-[#5a413a]">
-                    Configure meetup details & safety circle
+                    {activeSession ? "Monitor check-ins & timer progress" : "Configure meetup details & safety circle"}
                   </span>
                 </div>
               </div>
@@ -267,116 +347,136 @@ export default function HomeScreen() {
             {/* Main Dashboard Layout Grid */}
             <div className="grid grid-cols-12 gap-8 items-start">
               {/* Left Column: Active Session Detail (Large Card) */}
-              <section className="col-span-12 lg:col-span-8 flex flex-col">
-                <div
-                  className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col"
-                  style={{ borderColor: "#e2bfb5" }}
-                >
-                  {/* Card Header */}
+              <section className="col-span-12 lg:col-span-8 flex flex-col">                {activeSession ? (
                   <div
-                    className="p-5 flex justify-between items-center border-b bg-[#fff1ed]"
+                    className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col"
                     style={{ borderColor: "#e2bfb5" }}
                   >
-                    <div className="flex items-center gap-2">
-                      <Radio size={20} className="text-[#ac2d00]" />
-                      <h2 className="text-[18px] font-bold text-[#261814]">
-                        Active Monitoring
-                      </h2>
-                    </div>
-                    <div className="px-3 py-1 bg-[#ac2d00]/10 text-[#ac2d00] rounded-full text-[12px] font-bold flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 bg-[#ac2d00] rounded-full animate-ping" />
-                      LIVE
-                    </div>
-                  </div>
-
-                  {/* Card Columns */}
-                  <div className="grid grid-cols-1 md:grid-cols-2">
-                    {/* Maps Preview Panel */}
-                    <div className="min-h-[300px] relative bg-[#fff8f6]">
-                      <div
-                        className="absolute inset-0 bg-cover bg-center grayscale opacity-45"
-                        style={{
-                          backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuDQpfWQe1Tysy7mUFdcjMtsG1gCEpywJ8rU2AwMxxQYLpj9W85d86jSfy8zdSM0IBo2LtryBGko5W7q79gji8OA3NtUDMUdEZ4xlqY5_I7rMBLPf7mq1c5bpw3hplxj35HpdwGWs9ZPDkQlNgfKiMvUrwSpaDzV3x6Pz3a9-w702n2zPSkdeuzZGRifCGgQ2ZgKxMX2lPWZCk_PiSS_DQJM5-1TTkjBW3K8MRk6JBQzzevGQ-2anYdDP4K_P2gG0BXQBN9f5QDsOdk')`,
-                        }}
-                      />
-                      {/* Destination Overlay */}
-                      <div
-                        className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border flex items-center gap-2.5 shadow-sm"
-                        style={{ borderColor: "#e2bfb5" }}
-                      >
-                        <MapPin size={20} className="text-[#ac2d00]" />
-                        <div className="flex flex-col text-left">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a]">
-                            Destination
-                          </span>
-                          <span className="text-[14px] font-semibold text-[#261814]">
-                            124 Baker Street
-                          </span>
-                        </div>
+                    {/* Card Header */}
+                    <div
+                      className="p-5 flex justify-between items-center border-b bg-[#fff1ed]"
+                      style={{ borderColor: "#e2bfb5" }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Radio size={20} className="text-[#ac2d00]" />
+                        <h2 className="text-[18px] font-bold text-[#261814]">
+                          Active Monitoring
+                        </h2>
+                      </div>
+                      <div className="px-3 py-1 bg-[#ac2d00]/10 text-[#ac2d00] rounded-full text-[12px] font-bold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 bg-[#ac2d00] rounded-full animate-ping" />
+                        LIVE
                       </div>
                     </div>
 
-                    {/* Stats & Controls Panel */}
-                    <div className="p-6 flex flex-col justify-between text-left">
-                      <div>
-                        <h3 className="text-[22px] font-semibold text-[#261814] mb-1">
-                          Late Night Walk Home
-                        </h3>
-                        <p className="text-[14px] text-[#5a413a] mb-6">
-                          Estimated Arrival: 11:45 PM
-                        </p>
-
-                        {/* Progress Bar & Timer */}
-                        <div className="mb-6 space-y-1">
-                          <div className="flex justify-between items-end">
+                    {/* Card Columns */}
+                    <div className="grid grid-cols-1 md:grid-cols-2">
+                      {/* Maps Preview Panel */}
+                      <div className="min-h-[300px] relative bg-[#fff8f6]">
+                        <div
+                          className="absolute inset-0 bg-cover bg-center grayscale opacity-45"
+                          style={{
+                            backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuDQpfWQe1Tysy7mUFdcjMtsG1gCEpywJ8rU2AwMxxQYLpj9W85d86jSfy8zdSM0IBo2LtryBGko5W7q79gji8OA3NtUDMUdEZ4xlqY5_I7rMBLPf7mq1c5bpw3hplxj35HpdwGWs9ZPDkQlNgfKiMvUrwSpaDzV3x6Pz3a9-w702n2zPSkdeuzZGRifCGgQ2ZgKxMX2lPWZCk_PiSS_DQJM5-1TTkjBW3K8MRk6JBQzzevGQ-2anYdDP4K_P2gG0BXQBN9f5QDsOdk')`,
+                          }}
+                        />
+                        {/* Destination Overlay */}
+                        <div
+                          className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border flex items-center gap-2.5 shadow-sm"
+                          style={{ borderColor: "#e2bfb5" }}
+                        >
+                          <MapPin size={20} className="text-[#ac2d00]" />
+                          <div className="flex flex-col text-left">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a]">
-                              Progress
+                              Destination
                             </span>
-                            <span className="font-mono text-[24px] font-bold text-[#ac2d00]">
-                              {formatTime(seconds)}
-                            </span>
-                          </div>
-                          <div className="w-full h-3 rounded-full bg-[#fde2dc] overflow-hidden">
-                            <div
-                              className="h-full bg-[#ac2d00] rounded-full transition-all duration-1000"
-                              style={{ width: "65%" }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[11px] text-[#5a413a] pt-1">
-                            <span>Started: 11:20 PM</span>
-                            <span>Remaining: ~6m 20s</span>
-                          </div>
-                        </div>
-
-                        {/* Status Checklists */}
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3 p-3 bg-[#fff1ed] rounded-lg border border-[#e2bfb5]/50">
-                            <CheckCircle size={18} className="text-[#ac2d00]" />
-                            <span className="text-[13px] font-medium text-[#261814]">
-                              Tracking high-confidence signal
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 bg-[#fff1ed] rounded-lg border border-[#e2bfb5]/50">
-                            <Users size={18} className="text-[#ac2d00]" />
-                            <span className="text-[13px] font-medium text-[#261814]">
-                              Shared with 3 Emergency Contacts
+                            <span className="text-[14px] font-semibold text-[#261814]">
+                              {activeSession.destination_address || "Unknown Location"}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* View Button */}
-                      <button
-                        onClick={() => navigate("/session/active")}
-                        className="mt-6 w-full py-3 border-2 rounded-lg font-bold transition-all flex items-center justify-center gap-2 hover:bg-[#ac2d00]/5 active:scale-95 text-[#ac2d00]"
-                        style={{ borderColor: "#ac2d00" }}
-                      >
-                        <span>View Session Details</span>
-                        <ArrowRight size={18} />
-                      </button>
+                      {/* Stats & Controls Panel */}
+                      <div className="p-6 flex flex-col justify-between text-left">
+                        <div>
+                          <h3 className="text-[22px] font-semibold text-[#261814] mb-1">
+                            {activeSession.title}
+                          </h3>
+                          <p className="text-[14px] text-[#5a413a] mb-6">
+                            Deadline Check-in: {new Date(activeSession.expected_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+
+                          {/* Progress Bar & Timer */}
+                          <div className="mb-6 space-y-1">
+                            <div className="flex justify-between items-end">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-[#5a413a]">
+                                Remaining Time
+                              </span>
+                              <span className="font-mono text-[24px] font-bold text-[#ac2d00]">
+                                {formatTime(secondsLeft)}
+                              </span>
+                            </div>
+                            <div className="w-full h-3 rounded-full bg-[#fde2dc] overflow-hidden">
+                              <div
+                                className="h-full bg-[#ac2d00] rounded-full transition-all duration-1000 animate-pulse"
+                                style={{ width: "100%" }}
+                              />
+                            </div>
+                            <div className="flex justify-between text-[11px] text-[#5a413a] pt-1">
+                              <span>Started: {new Date(activeSession.actual_start || activeSession.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span>Pulsing real-time synchronization</span>
+                            </div>
+                          </div>
+
+                          {/* Status Checklists */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-3 bg-[#fff1ed] rounded-lg border border-[#e2bfb5]/50">
+                              <CheckCircle size={18} className="text-[#ac2d00]" />
+                              <span className="text-[13px] font-medium text-[#261814]">
+                                Tracking high-confidence signal
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-[#fff1ed] rounded-lg border border-[#e2bfb5]/50">
+                              <Users size={18} className="text-[#ac2d00]" />
+                              <span className="text-[13px] font-medium text-[#261814]">
+                                Safety Circle notified & listening
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* View Button */}
+                        <button
+                          onClick={() => navigate(`/session/active?id=${activeSession.id}`)}
+                          className="mt-6 w-full py-3 border-2 rounded-lg font-bold transition-all flex items-center justify-center gap-2 hover:bg-[#ac2d00]/5 active:scale-95 text-[#ac2d00]"
+                          style={{ borderColor: "#ac2d00" }}
+                        >
+                          <span>View Session Details</span>
+                          <ArrowRight size={18} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div
+                    className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col p-8 items-center text-center justify-center min-h-[380px]"
+                    style={{ borderColor: "#e2bfb5" }}
+                  >
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center bg-[#ffe9e4] mb-4">
+                      <Shield size={32} style={{ color: "#ac2d00" }} />
+                    </div>
+                    <h3 className="text-[20px] font-bold text-[#261814] mb-2">No Active Session</h3>
+                    <p className="text-[14px] text-[#5a413a] max-w-sm mb-6">
+                      Anchor is currently inactive. Set up a safety session to share your location with your trusted circle.
+                    </p>
+                    <button
+                      onClick={() => navigate("/session/new")}
+                      className="h-12 px-6 bg-[#ac2d00] hover:bg-[#d0451a] text-white font-bold rounded-lg active:scale-95 transition-transform"
+                    >
+                      Start Anchor Session
+                    </button>
+                  </div>
+                )}
               </section>
 
               {/* Right Column: Safety Essentials Sidebar */}

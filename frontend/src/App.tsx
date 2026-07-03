@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useAuthStore } from "./features/auth/stores/useAuthStore";
 
 // Feature: auth
 import OnboardingScreen from "./features/auth/screens/OnboardingScreen";
@@ -36,6 +38,12 @@ import IncidentDetailsScreen from "./features/alerts/screens/IncidentDetailsScre
 import IncidentResolvedScreen from "./features/alerts/screens/IncidentResolvedScreen";
 
 export default function App() {
+  const initializeAuth = useAuthStore((state) => state.initialize);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
   return (
     <BrowserRouter>
       <Routes>

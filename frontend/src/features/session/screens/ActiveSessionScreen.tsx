@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
@@ -12,14 +12,31 @@ import {
   ArrowLeft,
   AlertTriangle,
   LogOut,
+  Loader2,
 } from "lucide-react";
-import { sessionStore } from "../utils/sessionStore";
-import type { SessionData, TriggerType } from "../utils/sessionStore";
+import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { useSession } from "../hooks/useSession";
 
 export default function ActiveSessionScreen() {
   const navigate = useNavigate();
-  const [session, setSession] = useState<SessionData | null>(null);
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get("id");
+  const user = useAuthStore((state) => state.user);
+  const { triggerSOS, completeSession } = useSession();
+
+  const [session, setSession] = useState<any | null>(null);
   const [timeLeft, setTimeLeft] = useState(30 * 60);
+  const [isLoading, setIsLoading] = useState(false);
+  const [_errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
   
   // Modals state
   const [showCheckInPrompt, setShowCheckInPrompt] = useState(false);
@@ -27,50 +44,140 @@ export default function ActiveSessionScreen() {
   const [showExtendPrompt, setShowExtendPrompt] = useState(false);
   const [gracePeriodSeconds, setGracePeriodSeconds] = useState(1 * 60);
 
-  // Load session details from localStorage
-  useEffect(() => {
-    const stored = sessionStore.getActiveSession();
-    if (stored) {
-      try {
-        setSession(stored);
-
-        // Calculate remaining time from when session started
-        const duration = (stored.durationMinutes || 30) * 60;
-        const start = new Date(stored.startedAt).getTime();
-        const now = new Date().getTime();
-        const elapsed = Math.floor((now - start) / 1000);
-        setTimeLeft(Math.max(0, duration - elapsed));
-      } catch (e) {
-        console.error("Failed to parse active safety session", e);
+  // Load session details from Supabase
+  const loadActiveSession = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    setErrorMsg(null);
+    
+    try {
+      let query = supabase
+        .from("anchor_sessions")
+        .select(`
+          id,
+          title,
+          meet_person,
+          meet_phone,
+          destination_address,
+          destination_lat,
+          destination_lng,
+          expected_end,
+          actual_start,
+          checkin_interval_minutes,
+          description,
+          status,
+          session_version,
+          created_at,
+          session_contacts (
+            id,
+            name,
+            phone
+          )
+        `)
+        .eq("user_id", user.id)
+        .is("deleted_at", null);
+        
+      if (sessionId) {
+        query = query.eq("id", sessionId);
+      } else {
+        query = query.eq("status", "active");
       }
-    } else {
-      const fallbackSession: SessionData = {
-        id: sessionStore.generateId(),
-        title: "Marketplace Pickup",
-        personName: "Alex Rivera",
-        location: "Coffee House, 4th Ave",
-        date: new Date().toISOString().split("T")[0],
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        durationMinutes: 30,
-        contacts: [
-          {
-            id: "2",
-            name: "David Chen",
-            phone: "+1 (555) 987-6543",
-            avatarUrl:
-              "https://lh3.googleusercontent.com/aida-public/AB6AXuD5SMzNYC9FrPEt6RymcfLaMRC3QJLbKy_pxaLFO7S3M9FKFKriAR40V-xJKm1mXBwKk6z6TEt8g8xIlhPqe__TMCXy3hRGnaoUyb2UUyStTiI9pnRanFZEGHaoL6hpo9pGuTlvBSpythlnv-q7C_vt8bbWSdbv4A99QPsg2aXcWL3IxrP7ZemyNFTbD_6kfkx4d0eRcQos4KKKA-EnBQBoqPLiLE1sTPE3pJjcsyhTXAeqneISeYFIEqytdpbE7Q9RdC5B5hUqxTU",
-          },
-        ],
-        startedAt: new Date().toISOString(),
-        status: 'active',
-        checkIns: [],
-      };
-      setSession(fallbackSession);
+      
+      const { data, error } = await query
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+        
+      if (error) throw error;
+      
+      if (data) {
+        setSession({
+          id: data.id,
+          title: data.title,
+          personName: data.meet_person || "Unknown",
+          phone: data.meet_phone || "",
+          location: data.destination_address || "Unknown Location",
+          date: new Date(data.created_at).toISOString().split("T")[0],
+          time: new Date(data.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          durationMinutes: data.checkin_interval_minutes || 30,
+          notes: data.description || "",
+          contacts: data.session_contacts || [],
+          startedAt: data.actual_start || data.created_at,
+          status: data.status,
+          version: data.session_version,
+          checkIns: [],
+        });
+        
+        // Calculate remaining time until expected_end
+        const end = new Date(data.expected_end).getTime();
+        const now = Date.now();
+        setTimeLeft(Math.max(0, Math.floor((end - now) / 1000)));
+      } else {
+        // No active session found, redirect back
+        navigate("/dashboard");
+      }
+    } catch (e: any) {
+      console.error("Error loading active safety session", e);
+      setErrorMsg(e.message || "Failed to load active safety session.");
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    loadActiveSession();
+  }, [user, sessionId]);
+
+  // Real-time synchronization for safety session status changes
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const sessionChannel = supabase
+      .channel(`session-status-${session.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "anchor_sessions",
+          filter: `id=eq.${session.id}`,
+        },
+        (payload: any) => {
+          const updated = payload.new;
+          
+          if (updated.status === "emergency" || updated.status === "sos") {
+            navigate("/session/sos");
+          } else if (updated.status === "completed") {
+            navigate("/session/summary", { 
+              state: { 
+                session: { 
+                  ...session, 
+                  status: "completed", 
+                  endedAt: updated.actual_end 
+                } 
+              } 
+            });
+          } else {
+            setSession((prev: any) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                status: updated.status,
+                version: updated.session_version,
+                durationMinutes: updated.checkin_interval_minutes,
+              };
+            });
+            const end = new Date(updated.expected_end).getTime();
+            setTimeLeft(Math.max(0, Math.floor((end - Date.now()) / 1000)));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(sessionChannel);
+    };
+  }, [session?.id, navigate]);
 
   // Countdown timer
   useEffect(() => {
@@ -114,43 +221,132 @@ export default function ActiveSessionScreen() {
     return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
 
-  function handleSafeCheckIn() {
-    if (!session) return;
-    const newCheckIn = { timestamp: new Date().toISOString(), type: 'safe' as const };
-    const updatedSession = { ...session, checkIns: [...session.checkIns, newCheckIn] };
-    setSession(updatedSession);
-    sessionStore.setActiveSession(updatedSession);
-    
-    // Reset timer to original duration
-    const duration = (updatedSession.durationMinutes || 30) * 60;
-    setTimeLeft(duration);
-    setShowCheckInPrompt(false);
+  async function handleSafeCheckIn() {
+    if (!session || !user) return;
+    setIsLoading(true);
+    try {
+      // Find the next scheduled or pending check-in in the database
+      const { data: checkin, error: checkinError } = await supabase
+        .from("checkins")
+        .select("id")
+        .eq("session_id", session.id)
+        .in("status", ["scheduled", "pending"])
+        .order("expected_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (checkinError) throw checkinError;
+
+      if (checkin) {
+        const { error: markError } = await supabase.rpc("mark_checkin_completed", {
+          p_user_id: user.id,
+          p_checkin_id: checkin.id,
+          p_method: "web",
+          p_lat: session.lastKnownLat || 0.0,
+          p_lng: session.lastKnownLng || 0.0,
+        });
+        if (markError) throw markError;
+      }
+
+      // Reset timer to original duration
+      const duration = (session.durationMinutes || 30) * 60;
+      setTimeLeft(duration);
+      setShowCheckInPrompt(false);
+
+      // Refresh session state to sync with database updates
+      await loadActiveSession();
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to confirm safety check-in.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function handleEndSessionConfirm() {
-    if (!session) return;
-    const updatedSession = { ...session, status: 'completed' as const, endedAt: new Date().toISOString() };
-    sessionStore.addToHistory(updatedSession);
-    sessionStore.clearActiveSession();
-    navigate("/session/summary", { state: { session: updatedSession } });
+  async function handleEndSessionConfirm() {
+    if (!session || !user) return;
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      await completeSession(session.id, session.version);
+      
+      // Navigate to summary screen
+      navigate("/session/summary", { 
+        state: { 
+          session: { 
+            ...session, 
+            status: "completed", 
+            endedAt: new Date().toISOString() 
+          } 
+        } 
+      });
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to end safety session.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function handleExtend(minutes: number = 15) {
-    setTimeLeft((prev) => prev + minutes * 60);
-    setShowExtendPrompt(false);
-    setShowCheckInPrompt(false);
+  async function handleExtend(minutes: number = 15) {
+    if (!session || !user) return;
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const currentExpectedEnd = new Date(session.startedAt).getTime() + (session.durationMinutes + minutes) * 60000;
+      const newExpectedEnd = new Date(currentExpectedEnd).toISOString();
+
+      const { error: extendError } = await supabase
+        .from("anchor_sessions")
+        .update({
+          expected_end: newExpectedEnd,
+          session_version: session.version + 1,
+        })
+        .eq("id", session.id)
+        .eq("session_version", session.version);
+
+      if (extendError) throw extendError;
+
+      setTimeLeft(Math.max(0, Math.floor((currentExpectedEnd - Date.now()) / 1000)));
+      setShowExtendPrompt(false);
+      setShowCheckInPrompt(false);
+      
+      await loadActiveSession();
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to extend session.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function handleTriggerSOS(reason: string = 'SOS Button') {
-    if (!session) return;
-    const updatedSession = {
-      ...session,
-      status: 'sos' as const,
-      sosTriggeredAt: new Date().toISOString(),
-      triggerType: reason as TriggerType,
-    };
-    sessionStore.setActiveSession(updatedSession);
-    navigate("/session/sos");
+  async function handleTriggerSOS(_reason: string = 'SOS Button') {
+    if (!session || !user) return;
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      await triggerSOS(session.id, {
+        lat: session.lastKnownLat || 0.0,
+        lng: session.lastKnownLng || 0.0,
+        accuracy: 1.0,
+        address: session.location || "Unknown Location",
+      });
+
+      navigate("/session/sos");
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to trigger SOS alert.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (isLoading && !session) {
+    return (
+      <div className="min-h-screen bg-[#fff8f6] flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-[#ac2d00]" size={36} />
+        <p className="text-[14px] text-[#5a413a] font-medium animate-pulse">Loading active safety feed...</p>
+      </div>
+    );
   }
 
   if (!session) return null;
@@ -279,7 +475,7 @@ export default function ActiveSessionScreen() {
             Safety Circle Contacts ({session.contacts.length})
           </span>
           <div className="space-y-2">
-            {session.contacts.map((contact) => (
+            {session.contacts.map((contact: any) => (
               <div
                 key={contact.id}
                 className="flex items-center justify-between p-3 bg-white border border-[#e2bfb5] rounded-xl shadow-xs"
@@ -502,6 +698,20 @@ export default function ActiveSessionScreen() {
                 </div>
               )}
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#261814] text-[#fff8f6] px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 max-w-[90%] w-[340px] text-center justify-center font-semibold text-[13px] border border-[#e2bfb5]/20"
+          >
+            <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>

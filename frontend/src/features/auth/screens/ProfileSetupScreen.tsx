@@ -1,13 +1,28 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Camera, ShieldCheck } from "lucide-react";
+import { ArrowLeft, User, Camera, ShieldCheck, Loader2 } from "lucide-react";
+import { useAuthStore } from "../stores/useAuthStore";
+import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
 
 export default function ProfileSetupScreen() {
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState("");
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const profile = useAuthStore((state) => state.profile);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+
+  const [fullName, setFullName] = useState(profile?.full_name || "");
+  const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.avatar_url || null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync profile details if they load asynchronously
+  useEffect(() => {
+    if (profile) {
+      if (profile.full_name) setFullName(profile.full_name);
+      if (profile.avatar_url) setPhotoPreview(profile.avatar_url);
+    }
+  }, [profile]);
 
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -20,12 +35,25 @@ export default function ProfileSetupScreen() {
     }
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (fullName.trim().length <= 2) return;
-    navigate("/auth/trusted-contacts");
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    const { error } = await updateProfile({
+      full_name: fullName.trim(),
+      avatar_url: photoPreview,
+    });
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMsg(getFriendlyErrorMessage(error, "Failed to update profile. Please try again."));
+    } else {
+      navigate("/auth/trusted-contacts");
+    }
   }
 
-  const isButtonDisabled = fullName.trim().length <= 2;
+  const isButtonDisabled = fullName.trim().length <= 2 || isLoading;
 
   return (
     <div
@@ -154,6 +182,12 @@ export default function ProfileSetupScreen() {
 
         {/* Footer actions */}
         <div className="w-full px-2 pt-8 space-y-4">
+          {errorMsg && (
+            <p className="text-[14px] leading-5 text-center font-medium" style={{ color: "#ba1a1a" }}>
+              {errorMsg}
+            </p>
+          )}
+
           <button
             onClick={handleContinue}
             disabled={isButtonDisabled}
@@ -167,7 +201,11 @@ export default function ProfileSetupScreen() {
               boxShadow: isButtonDisabled ? undefined : "0 4px 16px rgba(172, 45, 0, 0.25)",
             }}
           >
-            Continue
+            {isLoading ? (
+              <Loader2 className="animate-spin" size={20} />
+            ) : (
+              "Continue"
+            )}
           </button>
           
           <div className="flex justify-center">

@@ -48,7 +48,7 @@ The app is built around **uncertainty, not emergency**. You do not need to be in
 
 ### Technical Summary
 
-useAnchor is a React + TypeScript Progressive Web App (PWA) backed by Supabase (PostgreSQL + Realtime + Edge Functions). It implements a dead-man-switch check-in system, a one-tap SOS trigger with cached GPS dispatch, and a multi-channel notification system (Firebase Cloud Messaging + Twilio SMS fallback). The trusted contact network is a first-class database entity, reusable across sessions.
+useAnchor is a React + TypeScript Progressive Web App (PWA) backed by Supabase (PostgreSQL + Realtime + Edge Functions). It implements a dead-man-switch check-in system, a one-tap SOS trigger with cached GPS dispatch, and a multi-channel notification system (Firebase Cloud Messaging plus a deferred SMS/provider queue for post-MVP delivery). The trusted contact network is a first-class database entity, reusable across sessions.
 
 ---
 
@@ -181,9 +181,9 @@ Missed responses escalate through three stages before full alert dispatch.
               ┌─────────────────────────────────────┤
               │                                     │
 ┌─────────────▼──────────┐           ┌──────────────▼────────┐
-│   Firebase FCM          │           │   Twilio SMS          │
-│   Push Notifications    │           │   Fallback Channel    │
-│   (primary channel)     │           │   (no-app contacts)   │
+│   Firebase FCM          │           │   Provider Queue      │
+│   Push Notifications    │           │   Deferred Delivery   │
+│   (primary channel)     │           │   (post-MVP provider) │
 └────────────────────────┘           └───────────────────────┘
 ```
 
@@ -195,7 +195,7 @@ Missed responses escalate through three stages before full alert dispatch.
 4. A scheduled database job watches for overdue sessions every 5 minutes
 5. If the user presses SOS or misses a check-in, an Edge Function is triggered
 6. The Edge Function sends push notifications via Firebase to contacts who have the app
-7. For contacts without the app, Twilio sends an SMS with a link to the alert page
+7. For contacts without the app, alert recipients remain queued/deferred until the production notification provider is enabled
 8. Trusted contacts open the link and see all session details and last known location
 
 ---
@@ -343,11 +343,11 @@ Edge Functions are serverless TypeScript functions that run on Supabase's infras
 2. Reads alert record and session details from database
 3. Fetches all trusted contacts for the session
 4. Dispatches FCM push notification to each contact with app
-5. Dispatches Twilio SMS to each contact without app (or as fallback)
+5. Queues non-push recipients for the production notification provider when that post-MVP integration is enabled
 6. Marks alert as `delivered: true`
 7. Updates session status to `sos`
 
-**Failure handling:** If FCM fails for a contact, immediately attempt Twilio SMS. Alert record stores delivery method per contact.
+**Failure handling:** For MVP, failed or unsupported delivery paths remain auditable in lert_recipients; production provider fallback is a later integration.
 
 #### `checkin-reminder`
 
@@ -368,7 +368,7 @@ Edge Functions are serverless TypeScript functions that run on Supabase's infras
 **Trigger:** Called internally by `sos-trigger` and `checkin-reminder`
 
 **Responsibilities:**
-1. Routes notification to correct channel (FCM or Twilio)
+1. Routes notification work through the alert recipient queue
 2. Constructs message payload with session details and alert link
 3. Returns delivery status per contact
 
@@ -396,6 +396,36 @@ select cron.schedule(
   $$
 );
 ```
+
+### 7.4 Current Backend Implementation Status
+
+The database layer now contains the core safety engine as transactional PL/pgSQL RPCs. The frontend and workers should call these RPCs for mutations instead of directly updating safety-critical tables.
+
+Implemented RPC domains:
+
+- **Session lifecycle**: `start_anchor_session`, `schedule_anchor_session`, `cancel_anchor_session`, and `complete_anchor_session` enforce session state transitions and write audit events.
+- **Check-ins**: `create_checkins_for_session`, `mark_checkin_completed`, `mark_checkin_missed`, and `skip_checkin` create scheduled check-ins, record user responses, and escalate missed responses.
+- **Alerts and escalation**: `trigger_alert`, `resolve_alert`, and `cancel_alert` handle SOS and missed-check-in alerts, emergency transitions, resolution, false alarms, and duplicate-alert protection.
+- **Trusted contacts**: `add_session_contacts`, `link_trusted_contact_to_profile`, and `acknowledge_alert` implement immutable session contact snapshots, app-profile linking, and contact acknowledgements.
+- **Notification pipeline**: `queue_alert_recipients`, `mark_recipient_sent`, `mark_recipient_delivered`, and `mark_recipient_failed` maintain per-recipient delivery state, retry counters, and delivery error metadata.
+- **Audit logging**: `log_audit_event` records actor identity, event category, event type, entity references, metadata, and correlation IDs for incident replay and debugging.
+
+Current implementation boundary:
+
+- The deterministic DB/RPC state machine exists.
+- Edge Function workers are still required to run the engine continuously.
+- Realtime subscriptions and React hooks are still required to expose the engine cleanly to the UI.
+- Offline reconciliation, network-failure recovery, time drift handling, and notification retry policy still need implementation hardening.
+
+### 7.5 Authentication Implementation
+
+Development authentication uses Supabase Test Phone Numbers & OTPs configured in the Supabase dashboard under Authentication -> Providers -> Phone -> Test OTPs. This bypasses real SMS delivery while keeping the same production auth code path.
+
+Production authentication uses Supabase Phone Auth with TextLocal configured as the SMS provider. Removing dashboard test numbers switches real users to real OTP delivery without frontend changes.
+
+The frontend auth flow should stay behind a single `AuthService` interface and one `SupabaseAuthService` implementation. `SupabaseAuthService` calls Supabase native `signInWithOtp` and `verifyOtp`; there is no separate mock auth implementation.
+
+Future auth SMS provider swaps, such as Twilio or Termii, should happen in Supabase provider configuration, not frontend code.
 
 ---
 
@@ -553,7 +583,7 @@ useAnchor uses two notification channels in a priority order:
 | Channel | Library | When Used |
 |---|---|---|
 | Push Notification | Firebase Cloud Messaging | Contact has app installed and FCM token registered |
-| SMS | Twilio | Contact has no app, or FCM delivery fails |
+| SMS/provider fallback | Deferred post-MVP provider | Contact has no app, or push delivery fails |
 
 The goal: a trusted contact must receive an alert regardless of whether they have useAnchor installed.
 
@@ -572,19 +602,19 @@ When a contact is added:
 
 The `notify` Edge Function uses the Firebase Admin SDK (server-side) to dispatch push notifications.
 
-### 9.3 Twilio SMS Fallback
+### 9.3 SMS / Provider Fallback
 
-Twilio is called by the `notify` Edge Function when:
+For MVP, the notification worker claims `alert_recipients` records and records a deferred provider result when:
 
 - A contact has no FCM token (no app installed)
-- FCM delivery returns a failure status
+- Push delivery returns a failure status
 
-The SMS body is constructed to include:
+The future provider payload should include:
 - The session owner's name
 - A short description of the situation
 - A direct link to `/alert/:alert_id`
 
-Example SMS:
+Example future provider message:
 ```
 SAFETY ALERT: David may need help.
 He started a session at 7:30 PM and has not responded.
@@ -663,7 +693,7 @@ startTracking: () => {
 
 ### 11.1 Authentication
 
-- Phone OTP via Supabase Auth (powered by Twilio Verify)
+- Phone OTP via Supabase Auth
 - JWT access tokens with refresh token rotation
 - Tokens stored in memory (not localStorage) via Supabase JS client defaults
 
@@ -747,8 +777,8 @@ Active Session View
   → sos-trigger Edge Function called
     → Reads session and contacts
     → Dispatches FCM to contacts with app
-    → Dispatches Twilio SMS to contacts without app
-    → Marks alert delivered
+    → Queues/defer contacts without app for the production provider
+    → Updates alert recipient queue state
   → Session status → 'sos'
   → User navigates to SOS Activated screen
   → User sees confirmation: contacts notified, GPS shared
@@ -878,9 +908,6 @@ SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
 FIREBASE_PROJECT_ID=<project_id>
 FIREBASE_CLIENT_EMAIL=<service_account_email>
 FIREBASE_PRIVATE_KEY=<service_account_private_key>
-TWILIO_ACCOUNT_SID=<twilio_sid>
-TWILIO_AUTH_TOKEN=<twilio_auth_token>
-TWILIO_PHONE_NUMBER=+1234567890
 APP_URL=https://useanchor.app
 ```
 
@@ -1005,7 +1032,7 @@ useanchor/
 - Supabase CLI (`npm install -g supabase`)
 - A Supabase project (free tier works for development)
 - A Firebase project with Cloud Messaging enabled
-- A Twilio account with an SMS-capable number
+- Supabase Phone Auth configured with dashboard Test OTPs for development
 
 ### Steps
 
@@ -1019,7 +1046,7 @@ npm install
 
 # 3. Copy and populate environment variables
 cp apps/web/.env.example apps/web/.env
-# Fill in Supabase, Firebase, and Twilio values
+# Fill in Supabase and Firebase values
 
 # 4. Link to your Supabase project
 supabase login
@@ -1035,9 +1062,6 @@ supabase functions deploy notify
 supabase functions deploy schedule-checkins
 
 # 7. Set Edge Function secrets
-supabase secrets set TWILIO_ACCOUNT_SID=<value>
-supabase secrets set TWILIO_AUTH_TOKEN=<value>
-supabase secrets set TWILIO_PHONE_NUMBER=<value>
 supabase secrets set FIREBASE_PROJECT_ID=<value>
 supabase secrets set FIREBASE_CLIENT_EMAIL=<value>
 supabase secrets set FIREBASE_PRIVATE_KEY=<value>
@@ -1078,7 +1102,7 @@ Edge Functions are deployed via the Supabase CLI (see Development Setup above). 
 - [ ] FCM VAPID key is correctly set
 - [ ] GPS permission prompt tested on real iOS and Android devices
 - [ ] Offline SOS queue tested by disabling network during SOS trigger
-- [ ] Twilio SMS delivery tested with a real phone number
+- [ ] Supabase Phone Auth tested with dashboard Test OTPs
 
 ---
 
@@ -1124,27 +1148,27 @@ This section documents architectural decisions and the reasoning behind them. Us
 | Decision | Choice | Reason |
 |---|---|---|
 | Backend platform | Supabase over Express/NestJS | Realtime, RLS, auth, and pg_cron in one platform reduces infrastructure complexity for MVP |
-| Auth method | Phone OTP | Mobile-first users; Twilio already in stack for SMS; no password management needed |
+| Auth method | Supabase Phone OTP | Mobile-first users; dashboard Test OTPs support development, TextLocal handles production OTP delivery; no password management needed |
 | State management | Zustand over Redux | Lighter weight, simpler API, sufficient for this scope |
 | GPS strategy | Cached location, not fresh fix | Fresh GPS during SOS introduces dangerous latency; cached location dispatches immediately |
 | Trusted contacts | First-class table, not per-session | Users should not rebuild their safety network for every session |
 | Alert page auth | UUID as access token, no login | Trusted contacts should never need to install the app to receive an alert |
 | PWA over native | PWA for MVP | Faster to build; no app store approval; installable from browser. Native shell (Capacitor) deferred to post-MVP for power button and voice features |
 | Check-in scheduler | pg_cron inside Supabase | Eliminates external job queue (no BullMQ/Redis); runs inside existing infrastructure |
-| SMS fallback | Twilio | Ensures alert delivery to contacts without the app installed; same Twilio account used for OTP |
+| Notification fallback | Deferred provider queue | Keeps alert recipient delivery auditable in MVP while provider-specific SMS integration remains post-MVP |
 | SOS confirmation | 2-second hold, not single tap | Prevents accidental activation without adding meaningful friction in a real emergency |
 
 ---
 
-## 21. Future Backend Integration (TODO)
+## 21. Backend Runtime TODO
 
-When the Supabase backend database and phone OTP authentication are fully integrated, keep the following guidelines in mind:
+The database RPC layer is implemented, but the runtime layer still needs workers, subscriptions, frontend hooks, and resilience hardening. Keep the following guidelines in mind:
 
 * **E.164 Phone Format Storage**: The validated phone number must be submitted and stored in the database profiles and trusted contacts tables in **E.164 international format** (e.g. `+2348031234567` or `+15550000000`).
-* **Why E.164**: This format ensures full compatibility with Supabase Auth OTP, SMS notification providers (like Twilio SMS / Twilio Verify), and future messaging services without regional formatting conflicts.
+* **Why E.164**: This format ensures full compatibility with Supabase Auth OTP, SMS notification providers and Supabase Phone Auth providers such as TextLocal, and future messaging services without regional formatting conflicts.
 
 ---
 
 *useAnchor MVP — Internal Technical Documentation*
-*Status: Pre-development*
+*Status: Backend RPC engine implemented; Edge Function workers, realtime subscriptions, and frontend integration pending*
 *Last updated: June 2026*

@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, UserPlus, Import, Info, X, AlertCircle } from "lucide-react";
+import { ArrowLeft, UserPlus, Import, Info, X, AlertCircle, Loader2 } from "lucide-react";
+import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../stores/useAuthStore";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
 
 interface Contact {
   id: string;
@@ -12,48 +16,125 @@ interface Contact {
 
 export default function TrustedContactsScreen() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
 
-  // Load template defaults
-  const [contacts, setContacts] = useState<Contact[]>([
-    {
-      id: "1",
-      name: "Sarah Mitchell",
-      phone: "+1 (555) 012-3456",
-      avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuAQePpUuBKwsoub5UBM_f81LVXERpegGnurfyiwa1elkHVPVs9q9ht5Lqk4qzVhBh4kpRadhlvsMYUexMSMTwLFw9FLBSJilA6pVd2kUzoqGN1D3KVQobFJ73ckSAVuCelVU2h7VEdD9rEysjmx548z9EzCOIlJVo799cZYw6jBY2sbbvgsZv2yI7O-p8EmPZLl9TfQtZ7TaLeGcyNllKu3r0TSySIzo1st-XtzxQmnzIZnZhGz1775UuGes-3p-_-Kz_3UkNYeJVk"
-    },
-    {
-      id: "2",
-      name: "David Chen",
-      phone: "+1 (555) 987-6543",
-      avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuAYKURgJMeHyiYcj_YLmLkWusAuXDy3agl0nncAeOipm54bxbulLrsGq3NK_aRM70XKSa4MHuPZwoh-8Fat_iRpqMuLj3gCVA3JPAPO6nLKtiwdS8SwNs1N1LuJf8jbUTVzOBxWnCFVke4AmG0dMx6uSZXZSqnRIgfen77BPd0T_wzWZU1vQPCYLhBsqHC9-JsAntZoIEJPkLmzAPr1lYHY0pxkiuqbpMveKuICT9ReNrD5TS0A3HiNc9x0zihr6TgU_ycZrUMt9fM"
-    }
-  ]);
-
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [formError, setFormError] = useState("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  function handleRemoveContact(id: string) {
-    setContacts((prev) => prev.filter((c) => c.id !== id));
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  // Fetch trusted contacts from database on mount
+  useEffect(() => {
+    async function fetchContacts() {
+      if (!user) return;
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("trusted_contacts")
+        .select(`
+          id,
+          name,
+          phone,
+          linked_profile:linked_profile_id (
+            avatar_url
+          )
+        `)
+        .eq("user_id", user.id)
+        .is("deleted_at", null);
+
+      setIsLoading(false);
+
+      if (!error && data) {
+        const formatted: Contact[] = data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          avatarUrl: c.linked_profile?.avatar_url || undefined,
+        }));
+        setContacts(formatted);
+      }
+    }
+    fetchContacts();
+  }, [user]);
+
+  async function handleRemoveContact(id: string) {
+    if (!user) return;
+    
+    // Perform hard delete for now (user deletes it from circle)
+    const { error } = await supabase
+      .from("trusted_contacts")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (!error) {
+      setContacts((prev) => prev.filter((c) => c.id !== id));
+    }
   }
 
-  function handleAddContact(e: React.FormEvent) {
+  async function handleAddContact(e: React.FormEvent) {
     e.preventDefault();
+    if (!user) return;
+
     if (!newName.trim() || !newPhone.trim()) {
       setFormError("Both name and phone number are required.");
       return;
     }
-    const newContact: Contact = {
-      id: Math.random().toString(),
-      name: newName.trim(),
-      phone: newPhone.trim()
-    };
-    setContacts((prev) => [...prev, newContact]);
-    setNewName("");
-    setNewPhone("");
+
+    // Validate phone number format
+    const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim());
+    if (!phoneNumberObj || !phoneNumberObj.isValid()) {
+      setFormError("Please enter a valid phone number in international format (e.g. +234...).");
+      return;
+    }
+
+    const formattedPhone = phoneNumberObj.number; // E.164 format
+
+    setIsLoading(true);
     setFormError("");
-    setShowAddForm(false);
+
+    const { data, error } = await supabase
+      .from("trusted_contacts")
+      .insert({
+        user_id: user.id,
+        name: newName.trim(),
+        phone: formattedPhone,
+      })
+      .select(`
+        id,
+        name,
+        phone,
+        linked_profile:linked_profile_id (
+          avatar_url
+        )
+      `)
+      .single();
+
+    setIsLoading(false);
+
+    if (error) {
+      setFormError(getFriendlyErrorMessage(error, "Failed to save contact. Make sure the contact is not already added."));
+    } else if (data) {
+      const added: Contact = {
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        avatarUrl: (data.linked_profile as any)?.avatar_url || undefined,
+      };
+      setContacts((prev) => [...prev, added]);
+      setNewName("");
+      setNewPhone("");
+      setShowAddForm(false);
+    }
   }
 
   return (
@@ -109,8 +190,7 @@ export default function TrustedContactsScreen() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               onClick={() => {
-                // Mock import alert
-                alert("Importing from device contacts is a native platform feature and will be simulated once mobile container is active. For now, please use 'Add Manually'.");
+                triggerToast("Importing from device contacts is a native platform feature and will be simulated once mobile container is active. For now, please use 'Add Manually'.");
               }}
               className="flex flex-col items-center justify-center gap-2 bg-white border border-[#e2bfb5] p-4 rounded-xl active:scale-95 transition-transform text-center"
             >
@@ -220,7 +300,14 @@ export default function TrustedContactsScreen() {
 
               {contacts.length === 0 && (
                 <div className="p-6 text-center border-2 border-dashed border-[#e2bfb5] rounded-xl text-[#5a413a] text-[14px]">
-                  No contacts added yet. Please add at least one manual contact to proceed.
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-2 justify-center py-2">
+                      <Loader2 className="animate-spin text-[#ac2d00]" size={20} />
+                      <span className="text-[12px] text-[#5a413a]">Loading contacts...</span>
+                    </div>
+                  ) : (
+                    "No contacts added yet. Please add at least one manual contact to proceed."
+                  )}
                 </div>
               )}
             </div>
@@ -262,6 +349,20 @@ export default function TrustedContactsScreen() {
         </div>
 
       </main>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#261814] text-[#fff8f6] px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 max-w-[90%] w-[340px] text-center justify-center font-semibold text-[13px] border border-[#e2bfb5]/20"
+          >
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

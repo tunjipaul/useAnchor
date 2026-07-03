@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle, AlertTriangle, Play, HelpCircle, History, ChevronRight, Filter, Plus } from "lucide-react";
-import { sessionStore, type SessionData } from "../utils/sessionStore";
+import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 
-// Helper function from HomeScreen to get status UI
-const getStatusConfig = (session: SessionData) => {
-  if (session.sosTriggeredAt) {
+const getStatusConfig = (session: any) => {
+  if (session.status === "sos" || session.status === "emergency") {
     return {
       label: "SOS Triggered",
       bg: "bg-[#ba1a1a]/10",
@@ -42,13 +42,42 @@ const getStatusConfig = (session: SessionData) => {
 
 export default function SessionHistoryScreen() {
   const navigate = useNavigate();
-  const [history, setHistory] = useState<SessionData[]>([]);
+  const user = useAuthStore((state) => state.user);
+  const [history, setHistory] = useState<any[]>([]);
+  const [_isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Load history
-    const storedHistory = sessionStore.getHistory();
-    setHistory(storedHistory);
-  }, []);
+    async function loadSessionHistory() {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("anchor_sessions")
+          .select("id, title, destination_address, status, created_at, expected_end, actual_start")
+          .eq("user_id", user.id)
+          .neq("status", "draft") // exclude drafts
+          .is("deleted_at", null) // exclude soft deleted sessions
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          setHistory(
+            data.map((s: any) => ({
+              id: s.id,
+              title: s.title,
+              location: s.destination_address || "Unknown Location",
+              startedAt: s.actual_start || s.created_at,
+              status: s.status,
+            }))
+          );
+        }
+      } catch (e) {
+        console.error("Failed to load history", e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadSessionHistory();
+  }, [user]);
 
   return (
     <div className="bg-[#FAFAF7] text-[#261814] min-h-screen">
