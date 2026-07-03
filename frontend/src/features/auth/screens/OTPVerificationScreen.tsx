@@ -77,23 +77,28 @@ export default function OTPVerificationScreen() {
     setIsLoading(true);
     setErrorMsg(null);
 
-    const { error } = await verifyOtp(phoneNumber, code);
-    setIsLoading(false);
+    try {
+      const { error } = await verifyOtp(phoneNumber, code);
+      if (error) {
+        setErrorMsg(getFriendlyErrorMessage(error, "Invalid verification code. Please check and try again."));
+      } else {
+        setIsSuccess(true);
 
-    if (error) {
-      setErrorMsg(getFriendlyErrorMessage(error, "Invalid verification code. Please check and try again."));
-    } else {
-      setIsSuccess(true);
-
-      // Navigate to correct page based on onboarding status and mode
-      setTimeout(() => {
-        const profile = useAuthStore.getState().profile;
-        if (mode === "login" || profile?.onboarding_completed) {
-          navigate("/dashboard");
-        } else {
-          navigate("/auth/profile-setup");
-        }
-      }, 1000);
+        // Navigate to correct page based on onboarding status and mode
+        setTimeout(() => {
+          const profile = useAuthStore.getState().profile;
+          if (mode === "login" || profile?.onboarding_completed) {
+            navigate("/dashboard");
+          } else {
+            navigate("/auth/profile-setup");
+          }
+        }, 1000);
+      }
+    } catch (err: any) {
+      console.error("Verification error:", err);
+      setErrorMsg("A verification connection error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   }
 

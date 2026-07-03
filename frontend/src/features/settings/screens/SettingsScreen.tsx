@@ -9,6 +9,7 @@ import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { supabase } from "../../../lib/supabase";
 
 type SettingsTab = "profile" | "contacts" | "notifications" | "voice" | "power" | "privacy" | "about";
 
@@ -22,6 +23,7 @@ export default function SettingsScreen() {
   const [fullName, setFullName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -80,6 +82,27 @@ export default function SettingsScreen() {
       navigate("/");
     } catch (e: any) {
       triggerToast(e.message || "Failed to log out.");
+    }
+  }
+
+  function handleDeleteAccount() {
+    setShowDeleteConfirm(true);
+  }
+
+  async function confirmDeleteAccount() {
+    setShowDeleteConfirm(false);
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc("delete_user_account");
+      if (error) throw error;
+      
+      // Log out locally and navigate back to onboarding
+      await logout();
+      navigate("/", { replace: true });
+    } catch (e: any) {
+      triggerToast(e.message || "Failed to delete account.");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -298,7 +321,7 @@ export default function SettingsScreen() {
                 <LogOut size={20} />
                 Sign out
               </button>
-              <button className="w-full p-4 flex items-center gap-3 hover:bg-[#ffdad6] transition-colors text-[#ba1a1a] text-[16px]">
+              <button onClick={handleDeleteAccount} className="w-full p-4 flex items-center gap-3 hover:bg-[#ffdad6] transition-colors text-[#ba1a1a] text-[16px]">
                 <Trash2 size={20} />
                 Delete Account
               </button>
@@ -354,6 +377,13 @@ export default function SettingsScreen() {
                 >
                   <LogOut size={20} />
                   <span className="text-[15px]">Logout</span>
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#ba1a1a] hover:bg-[#ffdad6] transition-all text-left w-full animate-hover"
+                >
+                  <Trash2 size={20} />
+                  <span className="text-[15px]">Delete Account</span>
                 </button>
               </nav>
 
@@ -562,6 +592,56 @@ export default function SettingsScreen() {
           >
             <span>{toastMessage}</span>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Deletion Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDeleteConfirm(false)}
+              className="absolute inset-0 bg-[#261814]/40 backdrop-blur-sm"
+            />
+            {/* Dialog Container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="relative w-full max-w-md bg-white rounded-2xl border border-[#e2bfb5] p-6 shadow-2xl space-y-6 text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center mx-auto">
+                <Trash2 size={24} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-[20px] font-bold text-[#261814]">Delete Account?</h3>
+                <p className="text-[14px] text-[#5a413a] leading-relaxed">
+                  Are you absolutely sure you want to delete your account? This action is permanent and cannot be undone. All your session data, emergency logs, and trusted contacts will be deleted.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3 text-[#5a413a] font-bold border border-[#e2bfb5] rounded-xl hover:bg-[#fff8f6] active:scale-95 transition-all text-[15px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteAccount}
+                  className="flex-1 py-3 bg-[#ba1a1a] text-white font-bold rounded-xl hover:bg-[#93000a] active:scale-95 transition-all text-[15px]"
+                >
+                  Delete Irreversibly
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

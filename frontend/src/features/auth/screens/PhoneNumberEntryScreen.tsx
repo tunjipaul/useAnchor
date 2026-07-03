@@ -28,20 +28,25 @@ export default function PhoneNumberEntryScreen() {
 
   const isButtonDisabled = !isValid || isLoading;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     if (!isValid || !phoneNumber) return;
 
     setIsLoading(true);
     setErrorMsg(null);
 
-    const { error } = await signInWithOtp(phoneNumber);
-    setIsLoading(false);
-
-    if (error) {
-      setErrorMsg(getFriendlyErrorMessage(error, "Failed to send verification code. Please check the number or try again later."));
-    } else {
-      navigate("/auth/verify", { state: { phoneNumber, mode } });
+    try {
+      const { error } = await signInWithOtp(phoneNumber);
+      if (error) {
+        setErrorMsg(getFriendlyErrorMessage(error, "Failed to send verification code. Please check the number or try again later."));
+      } else {
+        navigate("/auth/verify", { state: { phoneNumber, mode } });
+      }
+    } catch (err: any) {
+      console.error("Sign in OTP error:", err);
+      setErrorMsg("A network or configuration error occurred. Please check your connection or try again later.");
+    } finally {
+      setIsLoading(false);
     }
   }
 

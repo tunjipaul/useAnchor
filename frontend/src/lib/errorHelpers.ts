@@ -1,12 +1,24 @@
 export function getFriendlyErrorMessage(error: any, fallback: string): string {
   if (!error) return fallback;
   
-  const msg = typeof error === 'string' 
-    ? error 
-    : (error.message || error.error_description || JSON.stringify(error));
-    
-  if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network")) {
-    return "Unable to connect to the server. Please check your internet connection and try again.";
+  let msg = "";
+  if (typeof error === 'string') {
+    msg = error;
+  } else if (error && typeof error === 'object') {
+    msg = error.message || error.error_description || error.statusText || "";
+    // If it's a standard Error or has no printable properties, don't stringify empty
+    if (!msg && Object.keys(error).length > 0) {
+      msg = JSON.stringify(error);
+    }
+  }
+
+  // Fallback if message is empty or stringified empty object
+  if (!msg || msg === "{}" || msg === "({})") {
+    return fallback;
+  }
+  
+  if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network") || msg.includes("504")) {
+    return "Unable to connect to the safety server. Please check your internet connection and try again.";
   }
   
   if (msg.includes("OTP") || msg.includes("token") || msg.includes("code")) {
@@ -28,5 +40,5 @@ export function getFriendlyErrorMessage(error: any, fallback: string): string {
     return "This record already exists in your safety circle.";
   }
   
-  return msg || fallback;
+  return msg;
 }
