@@ -49,7 +49,8 @@ export default function App() {
       <Routes>
         {/* Auth */}
         <Route path="/" element={<OnboardingScreen />} />
-        <Route path="/auth/phone" element={<PhoneNumberEntryScreen />} />
+        <Route path="/auth/signup" element={<PhoneNumberEntryScreen />} />
+        <Route path="/auth/login" element={<PhoneNumberEntryScreen />} />
         <Route path="/auth/verify" element={<OTPVerificationScreen />} />
         <Route path="/auth/profile-setup" element={<ProfileSetupScreen />} />
         <Route path="/auth/trusted-contacts" element={<TrustedContactsScreen />} />

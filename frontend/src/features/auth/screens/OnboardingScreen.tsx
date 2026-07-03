@@ -117,7 +117,7 @@ export default function OnboardingScreen() {
 
   function handleNext() {
     if (isLast) {
-      navigate("/auth/phone");
+      navigate("/auth/signup");
       return;
     }
     setDirection(1);
@@ -186,7 +186,7 @@ export default function OnboardingScreen() {
           {/* Skip on non-last slides */}
           {!isLast && (
             <button
-              onClick={() => navigate("/auth/phone")}
+              onClick={() => navigate("/auth/signup")}
               className="w-full mt-3 py-2 text-[14px] font-medium transition-colors duration-200"
               style={{ color: "#8e7068" }}
             >

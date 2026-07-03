@@ -8,8 +8,9 @@ import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
 export default function OTPVerificationScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { phoneNumber?: string } | undefined;
+  const state = location.state as { phoneNumber?: string; mode?: "login" | "signup" } | undefined;
   const phoneNumber = state?.phoneNumber ?? "(555) 000-0000";
+  const mode = state?.mode ?? "signup";
 
   const verifyOtp = useAuthStore((state) => state.verifyOtp);
   const signInWithOtp = useAuthStore((state) => state.signInWithOtp);
@@ -84,10 +85,10 @@ export default function OTPVerificationScreen() {
     } else {
       setIsSuccess(true);
 
-      // Navigate to correct page based on onboarding status
+      // Navigate to correct page based on onboarding status and mode
       setTimeout(() => {
         const profile = useAuthStore.getState().profile;
-        if (profile?.onboarding_completed) {
+        if (mode === "login" || profile?.onboarding_completed) {
           navigate("/dashboard");
         } else {
           navigate("/auth/profile-setup");
