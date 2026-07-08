@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Search, Bell, Siren, CheckCircle, 
-  TimerOff, ZoomIn, LocateFixed, ArrowRight
+  TimerOff, ZoomIn, LocateFixed, ArrowRight, Loader2
 } from "lucide-react";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
@@ -15,8 +15,12 @@ export default function EmergencyAlertsScreen() {
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const loadAlerts = async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
     try {
       const { data, error } = await supabase
         .from("alerts")
@@ -24,13 +28,13 @@ export default function EmergencyAlertsScreen() {
           id,
           status,
           trigger_type,
-          last_known_address,
+          location_address,
           created_at,
           resolved_at,
           session:session_id (
             title
           ),
-          profile:user_id (
+          profiles:user_id (
             full_name,
             avatar_url
           )
@@ -44,8 +48,8 @@ export default function EmergencyAlertsScreen() {
           data.map((item: any) => ({
             id: item.id,
             userId: (item as any).user_id,
-            userName: (item.profile as any)?.full_name || "Unknown User",
-            userAvatar: (item.profile as any)?.avatar_url || "https://via.placeholder.com/150",
+            userName: (item.profiles as any)?.full_name || "Unknown User",
+            userAvatar: (item.profiles as any)?.avatar_url || "https://via.placeholder.com/150",
             triggeredAt: item.created_at,
             resolvedAt: item.resolved_at,
             triggerReason: item.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
@@ -54,15 +58,18 @@ export default function EmergencyAlertsScreen() {
             lastKnownLocation: {
               lat: 0,
               lng: 0,
-              address: item.last_known_address || "Unknown Location",
+              address: item.location_address || "Unknown Location",
             },
             batteryLevel: 82,
             signalStrength: "Strong",
           }))
         );
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error loading alerts:", e);
+      setErrorMsg(e.message || "Failed to load alerts feed. Please check connection.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -174,7 +181,16 @@ export default function EmergencyAlertsScreen() {
               
               {/* Left Panel: Incident List */}
               <div className="w-[400px] flex flex-col gap-3 overflow-y-auto pr-1 shrink-0 pb-10">
-                {filteredAlerts.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-[#5a413a]">
+                    <Loader2 className="animate-spin text-[#ac2d00]" size={28} />
+                    <span className="text-[13px] font-medium animate-pulse">Syncing safety alerts feed...</span>
+                  </div>
+                ) : errorMsg ? (
+                  <div className="bg-[#ffdad6] border border-[#ffb4ab] text-[#ba1a1a] p-5 rounded-xl text-[13px] font-semibold text-center shadow-sm">
+                    {errorMsg}
+                  </div>
+                ) : filteredAlerts.length === 0 ? (
                   <div className="text-center py-10 text-[#5a413a]">No incidents found.</div>
                 ) : (
                   filteredAlerts.map(alert => {
@@ -321,7 +337,16 @@ export default function EmergencyAlertsScreen() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {filteredAlerts.length === 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-[#5a413a]">
+                <Loader2 className="animate-spin text-[#ac2d00]" size={28} />
+                <span className="text-[13px] font-medium animate-pulse">Syncing safety alerts feed...</span>
+              </div>
+            ) : errorMsg ? (
+              <div className="bg-[#ffdad6] border border-[#ffb4ab] text-[#ba1a1a] p-5 rounded-xl text-[13px] font-semibold text-center shadow-sm">
+                {errorMsg}
+              </div>
+            ) : filteredAlerts.length === 0 ? (
               <div className="text-center py-8 text-[#5a413a]">No incidents found.</div>
             ) : (
               filteredAlerts.map(alert => {

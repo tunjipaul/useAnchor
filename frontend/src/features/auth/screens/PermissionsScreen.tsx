@@ -77,6 +77,14 @@ export default function PermissionsScreen() {
       });
   }
 
+  const isLocationRequired = "geolocation" in navigator;
+  const isNotificationRequired = "Notification" in window;
+
+  const isLocationReady = !isLocationRequired || locationStatus === "granted";
+  const isNotificationReady = !isNotificationRequired || notificationStatus === "granted";
+
+  const isRequiredPermissionsGranted = isLocationReady && isNotificationReady;
+
   return (
     <div
       className="flex-1 flex flex-col items-center justify-start px-4 overflow-y-auto"
@@ -233,13 +241,23 @@ export default function PermissionsScreen() {
         </div>
 
         {/* Footer actions */}
-        <div className="w-full px-2 pt-8">
+        <div className="w-full px-2 pt-8 flex flex-col gap-2">
+          {!isRequiredPermissionsGranted && (
+            <p className="text-[12px] font-bold text-[#ba1a1a] text-center mb-1 animate-pulse">
+              * Location and Notification permissions are required to finish setup.
+            </p>
+          )}
           <button
-            onClick={() => navigate("/dashboard")}
-            className="w-full h-[56px] rounded-xl flex items-center justify-center gap-2 font-semibold text-[18px] text-white active:scale-95 transition-transform shadow-lg"
+            onClick={() => {
+              if (isRequiredPermissionsGranted) {
+                navigate("/dashboard");
+              }
+            }}
+            disabled={!isRequiredPermissionsGranted}
+            className="w-full h-[56px] rounded-xl flex items-center justify-center gap-2 font-semibold text-[18px] text-white active:scale-95 transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
             style={{
-              backgroundColor: "#ac2d00",
-              boxShadow: "0 4px 16px rgba(172, 45, 0, 0.25)",
+              backgroundColor: isRequiredPermissionsGranted ? "#ac2d00" : "#a88a83",
+              boxShadow: isRequiredPermissionsGranted ? "0 4px 16px rgba(172, 45, 0, 0.25)" : "none",
             }}
           >
             <span>Finish Setup</span>

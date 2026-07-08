@@ -1,8 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { MapPin, PersonStanding, Shield, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
+import { MapPin, Shield, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
 import { supabase } from "../../../lib/supabase";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
+
+// Component to dynamically pan the map on coordinates updates
+function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], map.getZoom());
+  }, [lat, lng, map]);
+  return null;
+}
 
 export default function LiveLocationScreen() {
   const navigate = useNavigate();
@@ -13,6 +24,26 @@ export default function LiveLocationScreen() {
   const [alertData, setAlertData] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const customMarkerIcon = useMemo(() => {
+    return L.divIcon({
+      html: `<div class="relative w-12 h-12 flex items-center justify-center">
+               <div class="absolute inset-0 bg-[#ac2d00] rounded-full animate-ping opacity-35" style="animation-duration: 2s;"></div>
+               <div class="absolute w-8 h-8 bg-[#ac2d00]/25 rounded-full"></div>
+               <div class="w-7 h-7 rounded-full border-4 border-white bg-[#ac2d00] shadow-2xl flex items-center justify-center z-10">
+                  <svg class="text-white" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="5" r="1" />
+                    <path d="m9 20 3-6 3 6" />
+                    <path d="m6 8 6 2 6-2" />
+                    <path d="M12 10v4" />
+                  </svg>
+               </div>
+            </div>`,
+      className: "bg-transparent border-none",
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+  }, []);
 
   const fetchLiveLocation = async () => {
     if (!alertId) {
@@ -29,11 +60,11 @@ export default function LiveLocationScreen() {
           id,
           status,
           trigger_type,
-          last_known_lat,
-          last_known_lng,
-          last_known_address,
+          location_lat,
+          location_lng,
+          location_address,
           created_at,
-          profile:user_id (
+          profiles:user_id (
             full_name,
             avatar_url
           )
@@ -44,7 +75,13 @@ export default function LiveLocationScreen() {
       if (fetchError) throw fetchError;
 
       if (data) {
-        setAlertData(data);
+        setAlertData({
+          ...data,
+          last_known_lat: data.location_lat,
+          last_known_lng: data.location_lng,
+          last_known_address: data.location_address,
+          profile: data.profiles,
+        });
       } else {
         setError("Alert incident not found.");
       }
@@ -85,9 +122,9 @@ export default function LiveLocationScreen() {
             return {
               ...prev,
               status: updated.status,
-              last_known_lat: updated.last_known_lat,
-              last_known_lng: updated.last_known_lng,
-              last_known_address: updated.last_known_address || prev.last_known_address,
+              last_known_lat: updated.location_lat,
+              last_known_lng: updated.location_lng,
+              last_known_address: updated.location_address || prev.last_known_address,
             };
           });
         }
@@ -163,23 +200,30 @@ export default function LiveLocationScreen() {
       </header>
 
       {/* Full-Screen Map Visualization */}
-      <div className="absolute inset-0 w-full h-full">
-        <img
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0J8N7tbUaqI7UCMhiBoB9iK-AjUrFha522CGSttcBi1cnXXpYl2BHpQRFWDgc5pHZ3vzqPJFRLsqINN8dDKzxWYw85K4xVOhM09mY32uR-1yqNYTUPgAmvap7SqRpl0nJ1jwDMJe4-Ry8tlxyoVVh1HRTVt6pe2dQEQ5OUyK7Vcskg7Z9Sz7YhlAIA6UXWEe9g7U9Uq9knFEhtA-5hiuM-LAkHb2ogN_PJey7FzIoH7z68mfGm2ga_AiBz51bxfmkwh9VwuWbgXQ"
-          alt="Map details"
-          className="w-full h-full object-cover select-none"
-        />
-
-        {/* Pulsing Coordinates Marker */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-          <div className="relative w-16 h-16 flex items-center justify-center">
-            <div className="absolute inset-0 bg-[#ac2d00] rounded-full animate-ping opacity-35" style={{ animationDuration: '2s' }} />
-            <div className="absolute w-12 h-12 bg-[#ac2d00]/25 rounded-full" />
-            <div className="w-9 h-9 rounded-full border-4 border-white bg-[#ac2d00] shadow-2xl flex items-center justify-center z-10">
-              <PersonStanding size={18} className="text-white" />
-            </div>
+      <div className="absolute inset-0 w-full h-full z-0">
+        {typeof alertData.last_known_lat === "number" && typeof alertData.last_known_lng === "number" ? (
+          <MapContainer
+            center={[alertData.last_known_lat, alertData.last_known_lng]}
+            zoom={15}
+            zoomControl={false}
+            attributionControl={false}
+            className="w-full h-full"
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Marker
+              position={[alertData.last_known_lat, alertData.last_known_lng]}
+              icon={customMarkerIcon}
+            />
+            <RecenterMap lat={alertData.last_known_lat} lng={alertData.last_known_lng} />
+          </MapContainer>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-[#fde2dc] text-[#5a413a]">
+            <Loader2 className="animate-spin text-[#ac2d00] mb-2" size={28} />
+            <p className="text-[14px] font-semibold animate-pulse">Waiting for GPS coordinates...</p>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Floating Bottom Metadata Card */}

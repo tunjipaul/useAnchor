@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
 import {
   Shield,
   Plus,
@@ -16,6 +18,7 @@ import {
   Info,
   AlertTriangle,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
@@ -29,10 +32,130 @@ export default function HomeScreen() {
   const profile = useAuthStore((state) => state.profile);
   const userName = profile?.full_name || "User";
 
+  const customIcon = useMemo(() => {
+    return L.divIcon({
+      html: `<div class="relative flex items-center justify-center">
+               <div class="absolute w-8 h-8 bg-[#ac2d00]/30 rounded-full opacity-25 animate-ping"></div>
+               <div class="relative w-4 h-4 bg-[#ac2d00] rounded-full border-2 border-white shadow-md flex items-center justify-center">
+                  <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+               </div>
+            </div>`,
+      className: "bg-transparent border-none",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  }, []);
+
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [_isLoading, setIsLoading] = useState(true);
+  const [isTriggeringSOS, setIsTriggeringSOS] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
+
+  const handleEmergencySOS = async () => {
+    if (isTriggeringSOS || !profile?.id) return;
+    setIsTriggeringSOS(true);
+
+    try {
+      // 1. Check if there is an active or emergency session
+      const { data: currentSession, error: sessionFetchError } = await supabase
+        .from("anchor_sessions")
+        .select("id, status")
+        .eq("user_id", profile.id)
+        .in("status", ["active", "emergency"])
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sessionFetchError) throw sessionFetchError;
+
+      let targetSessionId = currentSession?.id;
+
+      // If the active session is already in emergency, go straight to the SOS view
+      if (currentSession?.status === "emergency") {
+        navigate("/session/sos");
+        return;
+      }
+
+      // If we don't have an active session, create a default emergency one
+      if (!targetSessionId) {
+        const now = new Date();
+        const durationMinutes = 30;
+        const expectedEnd = new Date(now.getTime() + durationMinutes * 60000).toISOString();
+
+        const { data: newSession, error: insertError } = await supabase
+          .from("anchor_sessions")
+          .insert({
+            user_id: profile.id,
+            title: "Quick SOS Alert",
+            expected_end: expectedEnd,
+            checkin_interval_minutes: 15,
+            status: "draft",
+            source_client: "web",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        if (!newSession) throw new Error("Failed to create quick SOS session.");
+
+        targetSessionId = newSession.id;
+
+        // Auto-link any trusted contacts
+        const { data: contacts } = await supabase
+          .from("trusted_contacts")
+          .select("id")
+          .eq("user_id", profile.id);
+
+        if (contacts && contacts.length > 0) {
+          const { error: contactsError } = await supabase.rpc("add_session_contacts", {
+            p_user_id: profile.id,
+            p_session_id: targetSessionId,
+            p_trusted_contact_ids: contacts.map((c: any) => c.id),
+          });
+          if (contactsError) throw contactsError;
+        }
+
+        // Start the session
+        const { error: startError } = await supabase.rpc("start_anchor_session", {
+          p_user_id: profile.id,
+          p_session_id: targetSessionId,
+          p_current_version: 1,
+        });
+        if (startError) throw startError;
+      }
+
+      // 2. Trigger the active emergency alert (Manual SOS)
+      const { error: triggerError } = await supabase.rpc("trigger_alert", {
+        p_user_id: profile.id,
+        p_session_id: targetSessionId,
+        p_trigger_type: "manual_sos",
+        p_lat: 0.0,
+        p_lng: 0.0,
+        p_accuracy: 1.0,
+        p_address: "Quick SOS Location",
+      });
+      if (triggerError) throw triggerError;
+
+      // 3. Navigate to SOS Activated Screen
+      navigate("/session/sos");
+    } catch (err: any) {
+      console.error("Emergency SOS activation failed:", err);
+      triggerToast(err.message || "Failed to trigger Emergency SOS. Please check connection.");
+    } finally {
+      setIsTriggeringSOS(false);
+    }
+  };
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -42,7 +165,7 @@ export default function HomeScreen() {
         // 1. Fetch active session
         const { data: activeData, error: activeError } = await supabase
           .from("anchor_sessions")
-          .select("id, title, destination_address, expected_end, checkin_interval_minutes, actual_start, status")
+          .select("id, title, destination_address, destination_lat, destination_lng, expected_end, checkin_interval_minutes, actual_start, status")
           .eq("user_id", user.id)
           .in("status", ["active", "emergency"])
           .is("deleted_at", null) // exclude soft deleted sessions
@@ -156,9 +279,16 @@ export default function HomeScreen() {
                 </span>
               </div>
             </div>
-            <span className="text-[20px] font-bold tracking-tight text-[#ac2d00]">
-              useAnchor
-            </span>
+            <button
+              onClick={handleEmergencySOS}
+              disabled={isTriggeringSOS}
+              className="bg-[#ac2d00] hover:bg-[#902600] disabled:bg-[#ac2d00]/70 text-white px-4 py-1.5 rounded-lg font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              {isTriggeringSOS ? (
+                <Loader2 className="animate-spin" size={12} />
+              ) : null}
+              <span>Emergency SOS</span>
+            </button>
           </header>
 
           {/* Status Area */}
@@ -372,16 +502,35 @@ export default function HomeScreen() {
                     {/* Card Columns */}
                     <div className="grid grid-cols-1 md:grid-cols-2">
                       {/* Maps Preview Panel */}
-                      <div className="min-h-[300px] relative bg-[#fff8f6]">
-                        <div
-                          className="absolute inset-0 bg-cover bg-center grayscale opacity-45"
-                          style={{
-                            backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuDQpfWQe1Tysy7mUFdcjMtsG1gCEpywJ8rU2AwMxxQYLpj9W85d86jSfy8zdSM0IBo2LtryBGko5W7q79gji8OA3NtUDMUdEZ4xlqY5_I7rMBLPf7mq1c5bpw3hplxj35HpdwGWs9ZPDkQlNgfKiMvUrwSpaDzV3x6Pz3a9-w702n2zPSkdeuzZGRifCGgQ2ZgKxMX2lPWZCk_PiSS_DQJM5-1TTkjBW3K8MRk6JBQzzevGQ-2anYdDP4K_P2gG0BXQBN9f5QDsOdk')`,
-                          }}
-                        />
+                      <div className="min-h-[300px] relative bg-[#fff8f6] overflow-hidden border-r border-[#e2bfb5]/50">
+                        {activeSession && (
+                          <div className="absolute inset-0 z-0">
+                            <MapContainer
+                              center={[
+                                activeSession.destination_lat || 6.5244,
+                                activeSession.destination_lng || 3.3792
+                              ]}
+                              zoom={14}
+                              scrollWheelZoom={false}
+                              style={{ height: "100%", width: "100%" }}
+                              zoomControl={false}
+                              attributionControl={false}
+                            >
+                              <TileLayer
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                              />
+                              {(activeSession.destination_lat && activeSession.destination_lng) && (
+                                <Marker
+                                  position={[activeSession.destination_lat, activeSession.destination_lng]}
+                                  icon={customIcon}
+                                />
+                              )}
+                            </MapContainer>
+                          </div>
+                        )}
                         {/* Destination Overlay */}
                         <div
-                          className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border flex items-center gap-2.5 shadow-sm"
+                          className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border flex items-center gap-2.5 shadow-sm z-10"
                           style={{ borderColor: "#e2bfb5" }}
                         >
                           <MapPin size={20} className="text-[#ac2d00]" />
@@ -631,6 +780,14 @@ export default function HomeScreen() {
 
 
       </div>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-[#ba1a1a] text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 font-semibold text-[13px] border border-[#ba1a1a]/20 max-w-[90%] w-[340px] text-center justify-center animate-pulse">
+          <span className="flex-grow text-left">{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-white/85 hover:text-white font-bold ml-2 text-[16px] leading-none">×</button>
+        </div>
+      )}
     </div>
   );
 }

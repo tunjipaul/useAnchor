@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 @theme {
   --font-sans: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
@@ -45,6 +46,7 @@
 .PhoneInputCountry {
   display: flex;
   align-items: center;
+  justify-content: center;
   align-self: stretch;
   padding: 0 16px;
   border-right: 1px solid #E4E2DB;
@@ -52,6 +54,9 @@
   transition: background-color 0.2s;
   cursor: pointer;
   position: relative;
+  gap: 6px; /* Spacing between icon, code text, and chevron */
+  flex-shrink: 0; /* Prevent container from shrinking in loading or disabled states */
+  min-width: 88px; /* Prevents flag+code+chevron from being squeezed/overlapping at small widths */
 }
 
 .PhoneInputCountry:hover {
@@ -64,9 +69,11 @@
   border-radius: 2px;
   box-shadow: 0 0 1px 0 rgba(26, 24, 24, 0.2);
   overflow: hidden;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
+  flex-shrink: 0; /* Prevent icon image frame from shrinking */
 }
 
 .PhoneInputCountryIconImg {
@@ -86,18 +93,22 @@
   z-index: 1;
   opacity: 0;
   cursor: pointer;
+  color: transparent;
+  font-size: 0;
+  -webkit-text-fill-color: transparent;
 }
 
 /* Custom select chevron indicator */
 .PhoneInputCountrySelectArrow {
-  display: block;
+  display: inline-block;
   width: 0;
   height: 0;
-  margin-left: 6px;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
   border-top: 4px solid #5a413a;
   opacity: 0.7;
+  align-self: center;
+  margin-top: 1px; /* Align chevron triangle center-line */
 }
 
 .PhoneInputInput {

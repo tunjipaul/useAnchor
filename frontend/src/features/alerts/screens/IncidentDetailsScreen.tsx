@@ -1,15 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
-  Bell, Siren, MapPin, PersonStanding, Route as RouteIcon, 
+  Bell, Siren, MapPin, Route as RouteIcon, 
   History, Users, Phone, Navigation, CheckCircle, RefreshCw, Plus, Minus,
   Loader2
 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
 import { supabase } from "../../../lib/supabase";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Helper components for React Leaflet integration
+function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], map.getZoom());
+  }, [lat, lng, map]);
+  return null;
+}
+
+function MapInstanceCapture({ setMap }: { setMap: (map: L.Map) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    setMap(map);
+  }, [map, setMap]);
+  return null;
+}
 
 export default function IncidentDetailsScreen() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +39,27 @@ export default function IncidentDetailsScreen() {
   const [isResponding, setIsResponding] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [map, setMap] = useState<L.Map | null>(null);
+
+  const customMarkerIcon = useMemo(() => {
+    return L.divIcon({
+      html: `<div class="relative w-12 h-12 flex items-center justify-center">
+               <div class="absolute inset-0 bg-[#ac2d00] rounded-full animate-ping opacity-35" style="animation-duration: 2s;"></div>
+               <div class="absolute w-8 h-8 bg-[#ac2d00]/25 rounded-full"></div>
+               <div class="w-7 h-7 rounded-full border-4 border-white bg-[#ac2d00] shadow-2xl flex items-center justify-center z-10">
+                  <svg class="text-white" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="5" r="1" />
+                    <path d="m9 20 3-6 3 6" />
+                    <path d="m6 8 6 2 6-2" />
+                    <path d="M12 10v4" />
+                  </svg>
+               </div>
+            </div>`,
+      className: "bg-transparent border-none",
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+  }, []);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -67,19 +107,19 @@ export default function IncidentDetailsScreen() {
           id,
           status,
           trigger_type,
-          last_known_lat,
-          last_known_lng,
-          last_known_address,
+          location_lat,
+          location_lng,
+          location_address,
           created_at,
           resolved_at,
           session:session_id (
             title,
-            description,
+            notes,
             actual_start,
             expected_end,
             created_at
           ),
-          profile:user_id (
+          profiles:user_id (
             full_name,
             avatar_url,
             phone
@@ -97,9 +137,9 @@ export default function IncidentDetailsScreen() {
           setAlert({
             id: data.id,
             userId: (data as any).user_id,
-            userName: (data.profile as any)?.full_name || "Unknown User",
-            userAvatar: (data.profile as any)?.avatar_url || "https://via.placeholder.com/150",
-            userPhone: (data.profile as any)?.phone || "",
+            userName: (data.profiles as any)?.full_name || "Unknown User",
+            userAvatar: (data.profiles as any)?.avatar_url || "https://via.placeholder.com/150",
+            userPhone: (data.profiles as any)?.phone || "",
             triggeredAt: data.created_at,
             triggerReason: data.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
             sessionTitle: (data.session as any)?.title || "Active Safety Session",
@@ -107,9 +147,9 @@ export default function IncidentDetailsScreen() {
             expectedEnd: (data.session as any)?.expected_end,
             status: data.status === "active" ? "active" : "resolved",
             lastKnownLocation: {
-              lat: data.last_known_lat || 0.0,
-              lng: data.last_known_lng || 0.0,
-              address: data.last_known_address || "Unknown Location",
+              lat: data.location_lat || 0.0,
+              lng: data.location_lng || 0.0,
+              address: data.location_address || "Unknown Location",
             },
             batteryLevel: 82,
             signalStrength: "Strong",
@@ -157,9 +197,9 @@ export default function IncidentDetailsScreen() {
                 ...prev,
                 status: updated.status,
                 lastKnownLocation: {
-                  lat: updated.last_known_lat || prev.lastKnownLocation.lat,
-                  lng: updated.last_known_lng || prev.lastKnownLocation.lng,
-                  address: updated.last_known_address || prev.lastKnownLocation.address,
+                  lat: updated.location_lat || prev.lastKnownLocation.lat,
+                  lng: updated.location_lng || prev.lastKnownLocation.lng,
+                  address: updated.location_address || prev.lastKnownLocation.address,
                 },
               };
             });
@@ -225,39 +265,61 @@ export default function IncidentDetailsScreen() {
   const renderContent = (isMobile: boolean) => (
     <div className={`flex flex-col h-full w-full ${!isMobile ? "lg:flex-row" : ""}`}>
       {/* Map Area */}
-      <section className={`relative bg-[#fde2dc] shrink-0 ${!isMobile ? "flex-1" : "h-[40vh]"}`}>
-        {/* Integrated Map Placeholder */}
+      <section className={`relative bg-[#fde2dc] shrink-0 ${!isMobile ? "flex-1" : "h-[40vh]"} z-0`}>
+        {/* Integrated Map */}
         <div className="absolute inset-0 w-full h-full overflow-hidden">
-          <img 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0J8N7tbUaqI7UCMhiBoB9iK-AjUrFha522CGSttcBi1cnXXpYl2BHpQRFWDgc5pHZ3vzqPJFRLsqINN8dDKzxWYw85K4xVOhM09mY32uR-1yqNYTUPgAmvap7SqRpl0nJ1jwDMJe4-Ry8tlxyoVVh1HRTVt6pe2dQEQ5OUyK7Vcskg7Z9Sz7YhlAIA6UXWEe9g7U9Uq9knFEhtA-5hiuM-LAkHb2ogN_PJey7FzIoH7z68mfGm2ga_AiBz51bxfmkwh9VwuWbgXQ" 
-            alt="Map" 
-            className="w-full h-full object-cover" 
-          />
+          {alert.lastKnownLocation.lat !== 0 && alert.lastKnownLocation.lng !== 0 ? (
+            <MapContainer
+              center={[alert.lastKnownLocation.lat, alert.lastKnownLocation.lng]}
+              zoom={15}
+              zoomControl={false}
+              attributionControl={false}
+              className="w-full h-full"
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <Marker
+                position={[alert.lastKnownLocation.lat, alert.lastKnownLocation.lng]}
+                icon={customMarkerIcon}
+              />
+              <RecenterMap lat={alert.lastKnownLocation.lat} lng={alert.lastKnownLocation.lng} />
+              <MapInstanceCapture setMap={setMap} />
+            </MapContainer>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-[#fde2dc] text-[#5a413a]">
+              <Loader2 className="animate-spin text-[#ac2d00] mb-2" size={28} />
+              <p className="text-[14px] font-semibold animate-pulse">Waiting for GPS coordinates...</p>
+            </div>
+          )}
         </div>
         
-        {/* Pulsing User Marker */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-          <div className="relative w-12 h-12 flex items-center justify-center">
-             <div className="absolute inset-0 bg-[#ac2d00] rounded-full animate-ping opacity-40"></div>
-             <div className="w-8 h-8 rounded-full border-4 border-white bg-[#ac2d00] shadow-xl flex items-center justify-center z-10">
-                <PersonStanding size={16} className="text-white" />
-             </div>
-          </div>
-        </div>
-
         {/* Map Controls Overlay */}
-        <div className="absolute right-4 bottom-4 flex flex-col gap-2">
+        <div className="absolute right-4 bottom-4 flex flex-col gap-2 z-10">
            {!isMobile && (
              <>
-               <button className="w-12 h-12 bg-white rounded-xl shadow-md flex items-center justify-center hover:bg-[#fde2dc] text-[#5a413a]">
+               <button
+                 onClick={() => map?.zoomIn()}
+                 className="w-12 h-12 bg-white rounded-xl shadow-md flex items-center justify-center hover:bg-[#fde2dc] text-[#5a413a] transition-colors"
+               >
                  <Plus size={24} />
                </button>
-               <button className="w-12 h-12 bg-white rounded-xl shadow-md flex items-center justify-center hover:bg-[#fde2dc] text-[#5a413a]">
+               <button
+                 onClick={() => map?.zoomOut()}
+                 className="w-12 h-12 bg-white rounded-xl shadow-md flex items-center justify-center hover:bg-[#fde2dc] text-[#5a413a] transition-colors"
+               >
                  <Minus size={24} />
                </button>
              </>
            )}
-           <button className="w-12 h-12 bg-[#ac2d00] text-white rounded-xl shadow-md flex items-center justify-center active:scale-90">
+           <button
+             onClick={() => {
+               if (map && alert.lastKnownLocation.lat && alert.lastKnownLocation.lng) {
+                 map.setView([alert.lastKnownLocation.lat, alert.lastKnownLocation.lng], 15);
+               }
+             }}
+             className="w-12 h-12 bg-[#ac2d00] text-white rounded-xl shadow-md flex items-center justify-center active:scale-90 transition-transform"
+           >
              <MapPin size={24} />
            </button>
         </div>

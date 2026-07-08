@@ -37,7 +37,16 @@ export function getFriendlyErrorMessage(error: any, fallback: string): string {
   }
 
   if (msg.includes("already exists") || msg.includes("duplicate")) {
-    return "This record already exists in your safety circle.";
+    if (msg.includes("uq_active_session_per_user")) {
+      return "You already have an active safety session in progress. Please complete or end your current session before starting a new one.";
+    }
+    if (msg.includes("trusted_contacts") || msg.includes("uq_active_user_id_phone")) {
+      return "This contact is already in your trusted circle.";
+    }
+    if (msg.includes("profiles") || msg.includes("phone")) {
+      return "This phone number is already registered to an account.";
+    }
+    return "This record already exists.";
   }
   
   return msg;

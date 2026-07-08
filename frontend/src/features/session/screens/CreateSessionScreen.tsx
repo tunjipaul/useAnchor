@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
 import {
   X,
   MapPin,
@@ -30,8 +32,48 @@ interface Contact {
 export default function CreateSessionScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const { createAndStartSession, isLoading: isCreating } = useSession();
+  const { createAndStartSession, completeSession, isLoading: isCreating } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Geolocation & Map State
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+
+  const customIcon = useMemo(() => {
+    return L.divIcon({
+      html: `<div class="relative flex items-center justify-center">
+               <div class="absolute w-8 h-8 bg-[#ac2d00]/30 rounded-full opacity-25 animate-ping"></div>
+               <div class="relative w-4 h-4 bg-[#ac2d00] rounded-full border-2 border-white shadow-md flex items-center justify-center">
+                  <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+               </div>
+            </div>`,
+      className: "bg-transparent border-none",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  }, []);
+
+  // Fetch current coordinates on mount for map review preview
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLat(pos.coords.latitude);
+          setLng(pos.coords.longitude);
+        },
+        (err) => {
+          console.warn("Error getting location: ", err);
+          // Fallback to default (Lagos)
+          setLat(6.5244);
+          setLng(3.3792);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } else {
+      setLat(6.5244);
+      setLng(3.3792);
+    }
+  }, []);
 
   // Form State
   const [title, setTitle] = useState("Marketplace Pickup");
@@ -61,6 +103,40 @@ export default function CreateSessionScreen() {
   const [addContactError, setAddContactError] = useState<string | null>(null);
   const [startSessionError, setStartSessionError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [isForceEnding, setIsForceEnding] = useState(false);
+
+  async function handleForceEndActiveSession() {
+    if (!user) return;
+    setIsForceEnding(true);
+    setStartSessionError(null);
+    try {
+      // 1. Fetch active session details
+      const { data: activeSession, error: fetchError } = await supabase
+        .from("anchor_sessions")
+        .select("id, session_version")
+        .eq("user_id", user.id)
+        .in("status", ["active", "emergency"])
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (activeSession) {
+        // 2. Complete the stuck session
+        await completeSession(activeSession.id, activeSession.session_version);
+        
+        // 3. Auto-retry starting the new session
+        await handleStartSession();
+      } else {
+        setStartSessionError("No active session found in the database. Please try starting the session again.");
+      }
+    } catch (e: any) {
+      setStartSessionError(getFriendlyErrorMessage(e, "Failed to force-end active session."));
+    } finally {
+      setIsForceEnding(false);
+    }
+  }
 
   // Fetch active contacts from database on mount
   useEffect(() => {
@@ -176,6 +252,8 @@ export default function CreateSessionScreen() {
           meet_person: personName || undefined,
           meet_phone: phone || undefined,
           destination_address: location || undefined,
+          destination_lat: lat || undefined,
+          destination_lng: lng || undefined,
           durationMinutes,
           notes: notes || undefined,
         },
@@ -594,25 +672,31 @@ export default function CreateSessionScreen() {
                 </div>
 
                 {/* Map Preview */}
-                <div className="h-32 w-full rounded-xl overflow-hidden border border-[#e2bfb5] relative">
-                  <div
-                    className="absolute inset-0 bg-cover bg-center grayscale opacity-40"
-                    style={{
-                      backgroundImage:
-                        "url('https://lh3.googleusercontent.com/aida-public/AB6AXuD-1e2_Mhl9Ofyq02LOy6VxnJargk74froU5v3WcxAov-qvYiWk1uw1xIm8lPX1WgR69o--jEgOImqMZcv_J0U8p0pUU9ogw0MqzS2RnGIcKF9AQRwO0RVxeeheoeHLxtE8uUcJAiLR78ljJKV-8k-X5z2ADsGJcjKhzC6bn4t0Ztxp0Jwad6YV2oa3cBCyaK7FBUTB-G_Ec7KSOih-NiBjt1LWADlwYopzmeW1gj2EY3tBLf87iZ4IgD-uR0LdBJtLctZ8V6NCzOs')",
-                    }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div
-                      className="w-6 h-6 bg-[#ac2d00] rounded-full flex items-center justify-center shadow-lg relative"
-                      style={{
-                        boxShadow: "0 0 0 8px rgba(172, 45, 0, 0.2)",
-                      }}
+                <div className="h-32 w-full rounded-xl overflow-hidden border border-[#e2bfb5] relative z-0">
+                  {lat !== null && lng !== null ? (
+                    <MapContainer
+                      center={[lat, lng]}
+                      zoom={14}
+                      scrollWheelZoom={false}
+                      style={{ height: "100%", width: "100%" }}
+                      zoomControl={false}
+                      attributionControl={false}
                     >
-                      <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+                      <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <Marker
+                        position={[lat, lng]}
+                        icon={customIcon}
+                      />
+                    </MapContainer>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#fff8f6] text-[#5a413a]">
+                      <Loader2 className="animate-spin text-[#ac2d00] mb-2" size={24} />
+                      <span className="text-[12px] font-semibold animate-pulse">Acquiring current GPS location...</span>
                     </div>
-                  </div>
-                  <div className="absolute bottom-2 left-2 bg-white/80 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-bold text-[#5a413a] uppercase tracking-wider border border-[#e2bfb5]/50">
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-white/80 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-bold text-[#5a413a] uppercase tracking-wider border border-[#e2bfb5]/50 z-10">
                     PREVIEW LOCATION
                   </div>
                 </div>
@@ -624,8 +708,25 @@ export default function CreateSessionScreen() {
         {/* Footer Actions */}
         <footer className="px-2 pt-4 space-y-3 w-full">
           {startSessionError && (
-            <div className="text-[13px] font-bold text-[#ba1a1a] bg-[#ffdad6]/40 p-3 rounded-lg text-left leading-tight">
-              {startSessionError}
+            <div className="text-[13px] font-bold text-[#ba1a1a] bg-[#ffdad6]/40 p-3 rounded-lg text-left leading-tight space-y-2">
+              <p>{startSessionError}</p>
+              {startSessionError.includes("active safety session") && (
+                <button
+                  type="button"
+                  onClick={handleForceEndActiveSession}
+                  disabled={isForceEnding || isCreating}
+                  className="w-full h-10 mt-1 bg-[#ba1a1a] hover:bg-[#a31515] text-white text-[12px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors active:scale-95 shadow-sm"
+                >
+                  {isForceEnding ? (
+                    <>
+                      <Loader2 className="animate-spin" size={14} />
+                      <span>Ending Stuck Session...</span>
+                    </>
+                  ) : (
+                    <span>Force-End Active Session</span>
+                  )}
+                </button>
+              )}
             </div>
           )}
           {currentStep < 3 ? (
