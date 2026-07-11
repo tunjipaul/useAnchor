@@ -103,29 +103,28 @@ export default function IncidentDetailsScreen() {
     try {
       const { data, error } = await supabase
         .from("alerts")
-        .select(`
-          id,
-          status,
-          trigger_type,
-          location_lat,
-          location_lng,
-          location_address,
-          created_at,
-          resolved_at,
-          session:session_id (
-            title,
-            notes,
-            actual_start,
-            expected_end,
-            created_at
-          ),
-          profiles:user_id (
-            full_name,
-            avatar_url,
-            phone
-          )
-        `)
-        .eq("id", id)
+          .select(`
+            id,
+            status,
+            trigger_type,
+            location_lat,
+            location_lng,
+            location_address,
+            created_at,
+            resolved_at,
+            session:anchor_sessions!session_id (
+              title,
+              description,
+              actual_start,
+              expected_end,
+              created_at
+            ),
+            profiles:profiles!user_id (
+              full_name,
+              avatar_url
+            )
+          `)
+          .eq("id", id)
         .single();
 
       if (error) throw error;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,6 +17,7 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { useSession } from "../hooks/useSession";
+import { useLocationStore } from "../stores/locationStore";
 
 export default function ActiveSessionScreen() {
   const navigate = useNavigate();
@@ -24,6 +25,9 @@ export default function ActiveSessionScreen() {
   const sessionId = searchParams.get("id");
   const user = useAuthStore((state) => state.user);
   const { triggerSOS, completeSession } = useSession();
+  const startTracking = useLocationStore((s) => s.startTracking);
+  const stopTracking = useLocationStore((s) => s.stopTracking);
+  const getCachedLocation = useLocationStore((s) => s.getLocation);
 
   const [session, setSession] = useState<any | null>(null);
   const [timeLeft, setTimeLeft] = useState(30 * 60);
@@ -43,6 +47,47 @@ export default function ActiveSessionScreen() {
   const [showEndSessionPrompt, setShowEndSessionPrompt] = useState(false);
   const [showExtendPrompt, setShowExtendPrompt] = useState(false);
   const [gracePeriodSeconds, setGracePeriodSeconds] = useState(1 * 60);
+
+  // SOS press-and-hold state
+  const SOS_HOLD_MS = 2000;
+  const [sosHoldProgress, setSosHoldProgress] = useState(0);
+  const [isSosHolding, setIsSosHolding] = useState(false);
+  const sosTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sosStartRef = useRef<number>(0);
+
+  const clearSosHold = useCallback(() => {
+    if (sosTimerRef.current) {
+      clearInterval(sosTimerRef.current);
+      sosTimerRef.current = null;
+    }
+    setIsSosHolding(false);
+    setSosHoldProgress(0);
+    sosStartRef.current = 0;
+  }, []);
+
+  const startSosHold = useCallback(() => {
+    if (isLoading) return;
+    setIsSosHolding(true);
+    sosStartRef.current = Date.now();
+    sosTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - sosStartRef.current;
+      const pct = Math.min(elapsed / SOS_HOLD_MS, 1);
+      setSosHoldProgress(pct);
+      if (pct >= 1) {
+        clearSosHold();
+        // Haptic feedback if supported
+        if (typeof navigator.vibrate === "function") {
+          navigator.vibrate(200);
+        }
+        handleTriggerSOS('SOS Button');
+      }
+    }, 30);
+  }, [isLoading]);
+
+  // Cleanup SOS timer on unmount
+  useEffect(() => {
+    return () => { clearSosHold(); };
+  }, [clearSosHold]);
 
   // Load session details from Supabase
   const loadActiveSession = async () => {
@@ -126,6 +171,10 @@ export default function ActiveSessionScreen() {
 
   useEffect(() => {
     loadActiveSession();
+    startTracking();
+    return () => {
+      stopTracking();
+    };
   }, [user, sessionId]);
 
   // Real-time synchronization for safety session status changes
@@ -238,12 +287,13 @@ export default function ActiveSessionScreen() {
       if (checkinError) throw checkinError;
 
       if (checkin) {
+        const loc = getCachedLocation();
         const { error: markError } = await supabase.rpc("mark_checkin_completed", {
           p_user_id: user.id,
           p_checkin_id: checkin.id,
           p_method: "web",
-          p_lat: session.lastKnownLat || 0.0,
-          p_lng: session.lastKnownLng || 0.0,
+          p_lat: loc?.lat ?? 0.0,
+          p_lng: loc?.lng ?? 0.0,
         });
         if (markError) throw markError;
       }
@@ -325,10 +375,11 @@ export default function ActiveSessionScreen() {
     setErrorMsg(null);
 
     try {
+      const loc = getCachedLocation();
       await triggerSOS(session.id, {
-        lat: session.lastKnownLat || 0.0,
-        lng: session.lastKnownLng || 0.0,
-        accuracy: 1.0,
+        lat: loc?.lat ?? 0.0,
+        lng: loc?.lng ?? 0.0,
+        accuracy: loc?.accuracy ?? 1.0,
         address: session.location || "Unknown Location",
       });
 
@@ -538,17 +589,58 @@ export default function ActiveSessionScreen() {
             <span>I'm Safe</span>
           </button>
 
-          {/* SOS Button */}
-          <div className="flex justify-center pt-2">
-            <button
-              onClick={() => handleTriggerSOS('SOS Button')}
-              className="w-24 h-24 bg-[#ac2d00] hover:bg-[#902400] text-white rounded-full shadow-xl flex flex-col items-center justify-center gap-0.5 active:scale-90 transition-transform hover:scale-105"
-            >
-              <Siren size={32} className="animate-bounce" />
-              <span className="text-[11px] font-extrabold uppercase tracking-wider">
-                SOS
-              </span>
-            </button>
+          {/* SOS Button — 2-second press-and-hold */}
+          <div className="flex flex-col items-center pt-2 gap-2">
+            <div className="relative w-28 h-28 flex items-center justify-center">
+              {/* Pulsing glow when holding */}
+              {isSosHolding && (
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.25, 0.05, 0.25] }}
+                  transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
+                  className="absolute inset-0 rounded-full bg-[#ba1a1a]/30"
+                />
+              )}
+              {/* Progress ring (SVG) */}
+              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 112 112">
+                <circle
+                  cx="56" cy="56" r="48"
+                  fill="none"
+                  stroke="#e2bfb5"
+                  strokeWidth="6"
+                  opacity="0.3"
+                />
+                <circle
+                  cx="56" cy="56" r="48"
+                  fill="none"
+                  stroke={sosHoldProgress > 0.7 ? "#ba1a1a" : "#fff8f6"}
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 48}`}
+                  strokeDashoffset={`${2 * Math.PI * 48 * (1 - sosHoldProgress)}`}
+                  style={{ transition: "stroke-dashoffset 30ms linear, stroke 200ms ease" }}
+                />
+              </svg>
+              {/* Core SOS button */}
+              <button
+                onPointerDown={startSosHold}
+                onPointerUp={clearSosHold}
+                onPointerLeave={clearSosHold}
+                onContextMenu={(e) => e.preventDefault()}
+                className={`relative z-10 w-24 h-24 rounded-full shadow-xl flex flex-col items-center justify-center gap-0.5 transition-transform select-none touch-none ${
+                  isSosHolding
+                    ? "bg-[#ba1a1a] scale-95"
+                    : "bg-[#ac2d00] hover:bg-[#902400] hover:scale-105"
+                } text-white`}
+              >
+                <Siren size={32} className={isSosHolding ? "" : "animate-bounce"} />
+                <span className="text-[11px] font-extrabold uppercase tracking-wider">
+                  {isSosHolding ? "HOLD..." : "SOS"}
+                </span>
+              </button>
+            </div>
+            <span className="text-[10px] text-[#5a413a] font-semibold">
+              Hold for 2 seconds to trigger
+            </span>
           </div>
         </footer>
       </main>

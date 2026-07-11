@@ -31,10 +31,10 @@ export default function EmergencyAlertsScreen() {
           location_address,
           created_at,
           resolved_at,
-          session:session_id (
+          session:anchor_sessions!session_id (
             title
           ),
-          profiles:user_id (
+          profiles:profiles!user_id (
             full_name,
             avatar_url
           )
@@ -67,7 +67,7 @@ export default function EmergencyAlertsScreen() {
       }
     } catch (e: any) {
       console.error("Error loading alerts:", e);
-      setErrorMsg(e.message || "Failed to load alerts feed. Please check connection.");
+      setErrorMsg("Unable to load emergency alerts. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }

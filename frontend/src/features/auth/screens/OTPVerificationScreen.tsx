@@ -9,8 +9,15 @@ export default function OTPVerificationScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as { phoneNumber?: string; mode?: "login" | "signup" } | undefined;
-  const phoneNumber = state?.phoneNumber ?? "(555) 000-0000";
+  const phoneNumber = state?.phoneNumber;
   const mode = state?.mode ?? "signup";
+
+  // If we somehow arrived here without a phone number, send back to phone entry
+  useEffect(() => {
+    if (!phoneNumber) {
+      navigate("/auth/phone", { replace: true });
+    }
+  }, [phoneNumber, navigate]);
 
   const verifyOtp = useAuthStore((state) => state.verifyOtp);
   const signInWithOtp = useAuthStore((state) => state.signInWithOtp);
@@ -61,7 +68,7 @@ export default function OTPVerificationScreen() {
   }
 
   async function handleResend() {
-    if (phoneNumber === "(555) 000-0000") return;
+    if (!phoneNumber) return;
     setTimeLeft(45);
     setErrorMsg(null);
     const { error } = await signInWithOtp(phoneNumber);
@@ -71,6 +78,7 @@ export default function OTPVerificationScreen() {
   }
 
   async function handleVerify() {
+    if (!phoneNumber) return;
     const code = otp.join("");
     if (code.length !== 6) return;
 
@@ -153,7 +161,7 @@ export default function OTPVerificationScreen() {
               className="text-[16px] leading-[25.6px]"
               style={{ color: "#5a413a" }}
             >
-              Sent to <span className="font-medium text-[#261814]">{phoneNumber}</span>
+              Sent to <span className="font-medium text-[#261814]">{phoneNumber ?? ""}</span>
             </p>
           </div>
 

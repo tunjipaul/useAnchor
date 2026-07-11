@@ -25,12 +25,16 @@ import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import { supabase } from "../../../lib/supabase";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { useLocationStore } from "../../session/stores/locationStore";
 
 export default function HomeScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
   const userName = profile?.full_name || "User";
+  const startTracking = useLocationStore((s) => s.startTracking);
+  const stopTracking = useLocationStore((s) => s.stopTracking);
+  const getCachedLocation = useLocationStore((s) => s.getLocation);
 
   const customIcon = useMemo(() => {
     return L.divIcon({
@@ -136,13 +140,14 @@ export default function HomeScreen() {
       }
 
       // 2. Trigger the active emergency alert (Manual SOS)
+      const loc = getCachedLocation();
       const { error: triggerError } = await supabase.rpc("trigger_alert", {
         p_user_id: profile.id,
         p_session_id: targetSessionId,
         p_trigger_type: "manual_sos",
-        p_lat: 0.0,
-        p_lng: 0.0,
-        p_accuracy: 1.0,
+        p_lat: loc?.lat ?? 0.0,
+        p_lng: loc?.lng ?? 0.0,
+        p_accuracy: loc?.accuracy ?? 1.0,
         p_address: "Quick SOS Location",
       });
       if (triggerError) throw triggerError;
@@ -208,6 +213,10 @@ export default function HomeScreen() {
     }
 
     loadDashboardData();
+    startTracking();
+    return () => {
+      stopTracking();
+    };
   }, [user]);
 
   // Countdown timer for active session

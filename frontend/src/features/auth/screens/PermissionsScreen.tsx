@@ -1,13 +1,19 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, MapPin, Bell, Mic, ShieldAlert, CheckCircle2, ChevronRight } from "lucide-react";
+import { usePushNotifications } from "../../session/hooks/usePushNotifications";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { supabase } from "../../../lib/supabase";
 
 export default function PermissionsScreen() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
 
   const [locationStatus, setLocationStatus] = useState<PermissionState | "prompt">("prompt");
   const [notificationStatus, setNotificationStatus] = useState<PermissionState | "prompt">("prompt");
   const [micStatus, setMicStatus] = useState<PermissionState | "prompt">("prompt");
+
+  const { requestNotificationPermission } = usePushNotifications();
 
   // Sync initial permission states on load
   useEffect(() => {
@@ -53,15 +59,21 @@ export default function PermissionsScreen() {
     );
   }
 
-  function requestNotifications() {
+  async function requestNotifications() {
     if (!("Notification" in window)) return;
-    Notification.requestPermission().then((permission) => {
-      if (permission === "granted") {
+    try {
+      const token = await requestNotificationPermission();
+      if (token || Notification.permission === "granted") {
         setNotificationStatus("granted");
+        if (token && user) {
+          await supabase.from("profiles").update({ fcm_token: token }).eq("id", user.id);
+        }
       } else {
         setNotificationStatus("denied");
       }
-    });
+    } catch (e) {
+      setNotificationStatus("denied");
+    }
   }
 
   function requestMicrophone() {

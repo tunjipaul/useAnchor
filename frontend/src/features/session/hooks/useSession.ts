@@ -119,6 +119,12 @@ export function useSession() {
       });
 
       if (sosError) throw sosError;
+
+      // Fire-and-forget notification worker invocation
+      supabase.functions.invoke('alert-notification-worker', {
+        body: { limit: 25, max_retries: 3 }
+      }).catch((err) => console.error('Notification worker invoke failed:', err));
+
       setIsLoading(false);
       return alertId;
     } catch (err: any) {
