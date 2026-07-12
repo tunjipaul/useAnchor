@@ -242,7 +242,7 @@ def get_session_checkins(session_id: int, db: Session = Depends(database.get_db)
 
 @app.get("/api/sessions/{session_id}/alerts")
 def get_session_alerts(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    return db.query(models.Alert).filter(models.Alert.session_id == session_id).order_by(models.Alert.created_at).all()
+    return db.query(models.Alert).filter(models.Alert.session_id == session_id).order_by(models.Alert.triggered_at).all()
 
 @app.delete("/api/sessions/{session_id}")
 def delete_session(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
