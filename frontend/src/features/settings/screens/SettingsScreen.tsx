@@ -9,7 +9,7 @@ import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 
 type SettingsTab = "profile" | "contacts" | "notifications" | "voice" | "power" | "privacy" | "about";
 
@@ -93,8 +93,7 @@ export default function SettingsScreen() {
     setShowDeleteConfirm(false);
     setIsSaving(true);
     try {
-      const { error } = await supabase.rpc("delete_user_account");
-      if (error) throw error;
+      await apiFetch("/profiles/account", { method: "DELETE" });
       
       // Log out locally and navigate back to onboarding
       await logout();

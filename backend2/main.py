@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 import datetime
@@ -15,7 +15,7 @@ app = FastAPI(title="useAnchor MVP Backend", version="2.0.0")
 SECRET_KEY = "DUMMY_SECRET_FOR_MVP"
 ALGORITHM = "HS256"
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/verify-otp")
+security = HTTPBearer()
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -24,8 +24,9 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(database.get_db)):
     try:
+        token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("sub")
         if user_id is None:
@@ -79,8 +80,15 @@ def check_dead_man_switch():
         db.close()
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(check_dead_man_switch, 'interval', minutes=1)
-scheduler.start()
+
+@app.on_event("startup")
+def startup_event():
+    scheduler.add_job(check_dead_man_switch, 'interval', minutes=1, next_run_time=datetime.datetime.utcnow())
+    scheduler.start()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
 
 
 # ==========================================
@@ -178,9 +186,26 @@ def complete_session(session_id: int, request: schemas.SessionActionRequest, db:
     db.commit()
     return {"message": "Session completed successfully"}
 
+class SessionExtendRequest(schemas.SessionActionRequest):
+    new_expected_end: str
+
+@app.post("/api/sessions/{session_id}/extend")
+def extend_session(session_id: int, request: SessionExtendRequest, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == session_id, models.AnchorSession.user_id == current_user.id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.expected_end = datetime.datetime.fromisoformat(request.new_expected_end.replace('Z', '+00:00'))
+    session.session_version = (session.session_version or 1) + 1
+    db.commit()
+    return {"message": "Session extended successfully"}
+
 @app.get("/api/sessions/active", response_model=schemas.SessionResponse)
 def get_active_session(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    session = db.query(models.AnchorSession).filter(models.AnchorSession.user_id == current_user.id, models.AnchorSession.status == "active").first()
+    session = db.query(models.AnchorSession).filter(
+        models.AnchorSession.user_id == current_user.id, 
+        models.AnchorSession.status.in_(["active", "sos", "emergency"])
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="No active session")
     return session
@@ -195,6 +220,24 @@ def get_session_details(session_id: int, db: Session = Depends(database.get_db),
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
+
+@app.get("/api/sessions/{session_id}/checkins")
+def get_session_checkins(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    return db.query(models.Checkin).filter(models.Checkin.session_id == session_id).order_by(models.Checkin.sequence_number).all()
+
+@app.get("/api/sessions/{session_id}/alerts")
+def get_session_alerts(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    return db.query(models.Alert).filter(models.Alert.session_id == session_id).order_by(models.Alert.created_at).all()
+
+@app.delete("/api/sessions/{session_id}")
+def delete_session(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == session_id, models.AnchorSession.user_id == current_user.id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    # Soft delete (since models aren't provided with deleted_at in schemas, we might just hard delete or ignore for MVP)
+    db.delete(session)
+    db.commit()
+    return {"message": "Session deleted"}
 
 
 # ==========================================
@@ -274,12 +317,35 @@ def get_alerts(db: Session = Depends(database.get_db), current_user: models.Prof
     # Very simplified view for MVP
     return db.query(models.Alert).all()
 
-@app.get("/api/alerts/{alert_id}", response_model=schemas.AlertResponse)
+@app.get("/api/alerts/{alert_id}")
 def get_alert_details(alert_id: int, db: Session = Depends(database.get_db)):
     alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
-    return alert
+        
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == alert.session_id).first()
+    user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first() if session else None
+    
+    return {
+        "id": alert.id,
+        "status": "active" if not alert.resolved_at else "resolved",
+        "created_at": alert.created_at,
+        "trigger_type": alert.trigger_type,
+        "location_lat": alert.location_lat,
+        "location_lng": alert.location_lng,
+        "location_address": alert.location_address,
+        "session": {
+            "title": session.title if session else "Unknown",
+            "meet_person": session.meet_person if session else "",
+            "destination_address": session.destination_address if session else "",
+            "description": session.description if session else ""
+        } if session else None,
+        "profile": {
+            "full_name": user.full_name if user else "Unknown User",
+            "avatar_url": user.avatar_url if user else None,
+            "phone": user.phone if user else None
+        } if user else None
+    }
 
 
 # ==========================================

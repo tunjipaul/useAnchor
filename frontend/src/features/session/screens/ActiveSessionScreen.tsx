@@ -14,7 +14,7 @@ import {
   LogOut,
   Loader2,
 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { useSession } from "../hooks/useSession";
 import { useLocationStore } from "../stores/locationStore";
@@ -96,44 +96,7 @@ export default function ActiveSessionScreen() {
     setErrorMsg(null);
     
     try {
-      let query = supabase
-        .from("anchor_sessions")
-        .select(`
-          id,
-          title,
-          meet_person,
-          meet_phone,
-          destination_address,
-          destination_lat,
-          destination_lng,
-          expected_end,
-          actual_start,
-          checkin_interval_minutes,
-          description,
-          status,
-          session_version,
-          created_at,
-          session_contacts (
-            id,
-            name,
-            phone
-          )
-        `)
-        .eq("user_id", user.id)
-        .is("deleted_at", null);
-        
-      if (sessionId) {
-        query = query.eq("id", sessionId);
-      } else {
-        query = query.eq("status", "active");
-      }
-      
-      const { data, error } = await query
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-        
-      if (error) throw error;
+      const data = sessionId ? await apiFetch<any>(`/sessions/${sessionId}`) : await apiFetch<any>("/sessions/active");
       
       if (data) {
         setSession({
@@ -146,8 +109,8 @@ export default function ActiveSessionScreen() {
           time: new Date(data.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           durationMinutes: data.checkin_interval_minutes || 30,
           notes: data.description || "",
-          contacts: data.session_contacts || [],
-          startedAt: data.actual_start || data.created_at,
+          contacts: [], // Mocked for MVP
+          startedAt: data.starts_at || data.created_at,
           status: data.status,
           version: data.session_version,
           checkIns: [],
@@ -181,51 +144,42 @@ export default function ActiveSessionScreen() {
   useEffect(() => {
     if (!session?.id) return;
 
-    const sessionChannel = supabase
-      .channel(`session-status-${session.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "anchor_sessions",
-          filter: `id=eq.${session.id}`,
-        },
-        (payload: any) => {
-          const updated = payload.new;
-          
-          if (updated.status === "emergency" || updated.status === "sos") {
-            navigate("/session/sos");
-          } else if (updated.status === "completed") {
-            navigate("/session/summary", { 
-              state: { 
-                session: { 
-                  ...session, 
-                  status: "completed", 
-                  endedAt: updated.actual_end 
-                } 
-              } 
-            });
-          } else {
-            setSession((prev: any) => {
-              if (!prev) return null;
-              return {
-                ...prev,
-                status: updated.status,
-                version: updated.session_version,
-                durationMinutes: updated.checkin_interval_minutes,
-              };
-            });
-            const end = new Date(updated.expected_end).getTime();
-            setTimeLeft(Math.max(0, Math.floor((end - Date.now()) / 1000)));
-          }
-        }
-      )
-      .subscribe();
+    const pollTimer = setInterval(async () => {
+      try {
+        const updated = await apiFetch<any>(`/sessions/${session.id}`);
+        if (!updated) return;
 
-    return () => {
-      supabase.removeChannel(sessionChannel);
-    };
+        if (updated.status === "emergency" || updated.status === "sos") {
+          navigate("/session/sos");
+        } else if (updated.status === "ended" || updated.status === "completed") {
+          navigate("/session/summary", { 
+            state: { 
+              session: { 
+                ...session, 
+                status: "completed", 
+                endedAt: updated.actual_end || new Date().toISOString()
+              } 
+            } 
+          });
+        } else {
+          setSession((prev: any) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              status: updated.status,
+              version: updated.session_version || prev.version,
+              durationMinutes: updated.checkin_interval_minutes,
+            };
+          });
+          const end = new Date(updated.expected_end).getTime();
+          setTimeLeft(Math.max(0, Math.floor((end - Date.now()) / 1000)));
+        }
+      } catch (err) {
+        console.error("Poll error", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(pollTimer);
   }, [session?.id, navigate]);
 
   // Countdown timer
@@ -274,28 +228,14 @@ export default function ActiveSessionScreen() {
     if (!session || !user) return;
     setIsLoading(true);
     try {
-      // Find the next scheduled or pending check-in in the database
-      const { data: checkin, error: checkinError } = await supabase
-        .from("checkins")
-        .select("id")
-        .eq("session_id", session.id)
-        .in("status", ["scheduled", "pending"])
-        .order("expected_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (checkinError) throw checkinError;
+      const checkins = await apiFetch<any[]>(`/sessions/${session.id}/checkins`);
+      const checkin = checkins.find(c => c.status === "scheduled" || c.status === "pending");
 
       if (checkin) {
-        const loc = getCachedLocation();
-        const { error: markError } = await supabase.rpc("mark_checkin_completed", {
-          p_user_id: user.id,
-          p_checkin_id: checkin.id,
-          p_method: "web",
-          p_lat: loc?.lat ?? 0.0,
-          p_lng: loc?.lng ?? 0.0,
+        await apiFetch(`/checkins/${checkin.id}/complete`, {
+          method: "POST",
+          body: JSON.stringify({ p_checkin_id: checkin.id })
         });
-        if (markError) throw markError;
       }
 
       // Reset timer to original duration
@@ -346,16 +286,14 @@ export default function ActiveSessionScreen() {
       const currentExpectedEnd = new Date(session.startedAt).getTime() + (session.durationMinutes + minutes) * 60000;
       const newExpectedEnd = new Date(currentExpectedEnd).toISOString();
 
-      const { error: extendError } = await supabase
-        .from("anchor_sessions")
-        .update({
-          expected_end: newExpectedEnd,
-          session_version: session.version + 1,
+      await apiFetch(`/sessions/${session.id}/extend`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_session_id: session.id,
+          p_current_version: session.version,
+          new_expected_end: newExpectedEnd
         })
-        .eq("id", session.id)
-        .eq("session_version", session.version);
-
-      if (extendError) throw extendError;
+      });
 
       setTimeLeft(Math.max(0, Math.floor((currentExpectedEnd - Date.now()) / 1000)));
       setShowExtendPrompt(false);

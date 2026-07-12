@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, UserPlus, Import, Info, X, AlertCircle, Loader2 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../stores/useAuthStore";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
@@ -38,29 +38,19 @@ export default function TrustedContactsScreen() {
     async function fetchContacts() {
       if (!user) return;
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("trusted_contacts")
-        .select(`
-          id,
-          name,
-          phone,
-          linked_profile:linked_profile_id (
-            avatar_url
-          )
-        `)
-        .eq("user_id", user.id)
-        .is("deleted_at", null);
-
-      setIsLoading(false);
-
-      if (!error && data) {
+      try {
+        const data = await apiFetch<any[]>("/contacts");
         const formatted: Contact[] = data.map((c: any) => ({
           id: c.id,
           name: c.name,
-          phone: c.phone,
-          avatarUrl: c.linked_profile?.avatar_url || undefined,
+          phone: c.phone_number,
+          avatarUrl: undefined,
         }));
         setContacts(formatted);
+      } catch (error) {
+        console.error("Failed to fetch contacts", error);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchContacts();
@@ -70,14 +60,11 @@ export default function TrustedContactsScreen() {
     if (!user) return;
     
     // Perform hard delete for now (user deletes it from circle)
-    const { error } = await supabase
-      .from("trusted_contacts")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
-
-    if (!error) {
+    try {
+      await apiFetch(`/contacts/${id}`, { method: "DELETE" });
       setContacts((prev) => prev.filter((c) => c.id !== id));
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -102,38 +89,28 @@ export default function TrustedContactsScreen() {
     setIsLoading(true);
     setFormError("");
 
-    const { data, error } = await supabase
-      .from("trusted_contacts")
-      .insert({
-        user_id: user.id,
-        name: newName.trim(),
-        phone: formattedPhone,
-      })
-      .select(`
-        id,
-        name,
-        phone,
-        linked_profile:linked_profile_id (
-          avatar_url
-        )
-      `)
-      .single();
-
-    setIsLoading(false);
-
-    if (error) {
-      setFormError(getFriendlyErrorMessage(error, "Failed to save contact. Make sure the contact is not already added."));
-    } else if (data) {
+    try {
+      const data = await apiFetch<any>("/contacts", {
+        method: "POST",
+        body: JSON.stringify({
+          name: newName.trim(),
+          phone_number: formattedPhone,
+        })
+      });
       const added: Contact = {
         id: data.id,
         name: data.name,
-        phone: data.phone,
-        avatarUrl: (data.linked_profile as any)?.avatar_url || undefined,
+        phone: data.phone_number,
+        avatarUrl: undefined,
       };
       setContacts((prev) => [...prev, added]);
       setNewName("");
       setNewPhone("");
       setShowAddForm(false);
+    } catch (error: any) {
+      setFormError(getFriendlyErrorMessage(error, "Failed to save contact. Make sure the contact is not already added."));
+    } finally {
+      setIsLoading(false);
     }
   }
 

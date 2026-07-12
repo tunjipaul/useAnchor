@@ -7,5 +7,9 @@
     "deno.suggest.imports.hosts": {
         "https://deno.land": true,
         "https://esm.sh": true
-    }
+    },
+    "python.defaultInterpreterPath": ".backend2\\.venv\\Scripts\\python.exe",
+    "python.analysis.extraPaths": [
+        "backend"
+    ]
 }

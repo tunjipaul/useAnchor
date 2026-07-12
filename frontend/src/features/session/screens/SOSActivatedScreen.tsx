@@ -10,7 +10,7 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -34,44 +34,23 @@ export default function SOSActivatedScreen() {
       if (!user) return;
       setIsLoading(true);
       try {
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("anchor_sessions")
-          .select(`
-            *,
-            session_contacts (
-              id,
-              name,
-              phone
-            )
-          `)
-          .eq("user_id", user.id)
-          .eq("status", "emergency")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const sessionData = await apiFetch<any>("/sessions/active");
 
-        if (sessionError) throw sessionError;
-
-        if (sessionData) {
+        if (sessionData && (sessionData.status === "sos" || sessionData.status === "emergency")) {
           setSession({
             id: sessionData.id,
             title: sessionData.title,
-            startedAt: sessionData.actual_start || sessionData.created_at,
+            startedAt: sessionData.starts_at || sessionData.created_at,
             durationMinutes: sessionData.checkin_interval_minutes || 30,
-            sosTriggeredAt: sessionData.emergency_started_at || sessionData.updated_at,
-            contacts: sessionData.session_contacts || [],
+            sosTriggeredAt: sessionData.updated_at,
+            contacts: [], // mock for MVP
           });
 
-          const { data: alertData } = await supabase
-            .from("alerts")
-            .select("id")
-            .eq("session_id", sessionData.id)
-            .eq("status", "active")
-            .limit(1)
-            .maybeSingle();
+          const alerts = await apiFetch<any[]>(`/sessions/${sessionData.id}/alerts`);
+          const active = alerts.find(a => !a.resolved_at);
 
-          if (alertData) {
-            setActiveAlert(alertData);
+          if (active) {
+            setActiveAlert(active);
           }
         } else {
           navigate("/dashboard");
@@ -90,12 +69,10 @@ export default function SOSActivatedScreen() {
     if (!activeAlert || !user) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.rpc("cancel_alert", {
-        p_user_id: user.id,
-        p_alert_id: activeAlert.id,
+      await apiFetch(`/alerts/${activeAlert.id}/cancel`, {
+        method: "POST"
       });
 
-      if (error) throw error;
       navigate("/dashboard");
     } catch (e: any) {
       triggerToast(e.message || "Failed to cancel active safety alarm.");

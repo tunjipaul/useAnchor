@@ -8,7 +8,7 @@ import {
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
@@ -52,41 +52,30 @@ export default function ContactsManagerScreen() {
   const [drawerIsPrimary, setDrawerIsPrimary] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
-  // Fetch contacts from Supabase
   const fetchContacts = async () => {
     if (!user) return;
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("trusted_contacts")
-      .select(`
-        id,
-        name,
-        phone,
-        relationship,
-        is_active,
-        linked_profile:linked_profile_id (
-          avatar_url
-        )
-      `)
-      .eq("user_id", user.id)
-      .is("deleted_at", null);
-
-    setIsLoading(false);
-    if (!error && data) {
+    
+    try {
+      const data = await apiFetch<any[]>("/contacts");
       const mapped = data.map((c: any) => {
         const parts = c.name.split(" ");
         return {
           id: c.id,
           firstName: parts[0] || "Unknown",
           lastName: parts.slice(1).join(" ") || "",
-          phone: c.phone,
+          phone: c.phone_number,
           tag: c.relationship as RelationshipTag,
-          isPrimary: false,
-          status: c.is_active ? ("active" as const) : ("disabled" as const),
-          avatar: c.linked_profile?.avatar_url || "https://via.placeholder.com/150",
+          isPrimary: c.is_emergency_contact,
+          status: c.opted_in ? "active" : "disabled",
+          avatar: "https://via.placeholder.com/150",
         };
       });
       setContacts(mapped);
+    } catch (error) {
+      console.error("Failed to fetch contacts", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -97,17 +86,12 @@ export default function ContactsManagerScreen() {
   const handleDeleteContact = async (id: string) => {
     if (!user) return;
     setErrorMsg(null);
-    const { error } = await supabase
-      .from("trusted_contacts")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
-
-    if (error) {
-      triggerToast(error.message || "Failed to delete contact.");
-    } else {
+    try {
+      await apiFetch(`/contacts/${id}`, { method: "DELETE" });
       setContacts(contacts.filter((c) => c.id !== id));
       setActiveDropdown(null);
+    } catch (error: any) {
+      triggerToast(error.message || "Failed to delete contact.");
     }
   };
 
@@ -140,30 +124,15 @@ export default function ContactsManagerScreen() {
     setIsLoading(true);
     const fullName = `${newFirstName.trim()} ${newLastName.trim()}`.trim();
 
-    const { data, error } = await supabase
-      .from("trusted_contacts")
-      .insert({
-        user_id: user.id,
-        name: fullName,
-        phone: formattedPhone,
-      })
-      .select(`
-        id,
-        name,
-        phone,
-        relationship,
-        is_active,
-        linked_profile:linked_profile_id (
-          avatar_url
-        )
-      `)
-      .single();
+    try {
+      const data = await apiFetch<any>("/contacts", {
+        method: "POST",
+        body: JSON.stringify({
+          name: fullName,
+          phone_number: formattedPhone,
+        })
+      });
 
-    setIsLoading(false);
-
-    if (error) {
-      setModalError(getFriendlyErrorMessage(error, "Failed to save contact."));
-    } else if (data) {
       const parts = data.name.split(" ");
       setContacts([
         ...contacts,
@@ -171,11 +140,11 @@ export default function ContactsManagerScreen() {
           id: data.id,
           firstName: parts[0] || "Unknown",
           lastName: parts.slice(1).join(" ") || "",
-          phone: data.phone,
+          phone: data.phone_number,
           tag: data.relationship as RelationshipTag,
-          isPrimary: false,
-          status: data.is_active ? ("active" as const) : ("disabled" as const),
-          avatar: (data.linked_profile as any)?.avatar_url || "https://via.placeholder.com/150",
+          isPrimary: data.is_emergency_contact,
+          status: data.opted_in ? "active" : "disabled",
+          avatar: "https://via.placeholder.com/150",
         },
       ]);
       setNewFirstName("");
@@ -183,6 +152,10 @@ export default function ContactsManagerScreen() {
       setNewPhone("");
       setModalError(null);
       setIsModalOpen(false);
+    } catch (error: any) {
+      setModalError(getFriendlyErrorMessage(error, "Failed to save contact."));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -230,34 +203,19 @@ export default function ContactsManagerScreen() {
 
     setIsLoading(true);
 
-    if (selectedContactId) {
-      // Edit mode
-      const { data, error } = await supabase
-        .from("trusted_contacts")
-        .update({
-          name: drawerFullName.trim(),
-          phone: formattedPhone,
-          relationship: drawerTag,
-        })
-        .eq("id", selectedContactId)
-        .eq("user_id", user.id)
-        .select(`
-          id,
-          name,
-          phone,
-          relationship,
-          is_active,
-          linked_profile:linked_profile_id (
-            avatar_url
-          )
-        `)
-        .single();
-
-      setIsLoading(false);
-
-      if (error) {
-        setDrawerError(getFriendlyErrorMessage(error, "Failed to update contact."));
-      } else if (data) {
+    try {
+      if (selectedContactId) {
+        // Edit mode
+        const data = await apiFetch<any>(`/contacts/${selectedContactId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            name: drawerFullName.trim(),
+            phone_number: formattedPhone,
+            relationship: drawerTag,
+            is_emergency_contact: drawerIsPrimary
+          })
+        });
+        
         const parts = data.name.split(" ");
         setContacts(
           contacts.map((c) =>
@@ -266,42 +224,26 @@ export default function ContactsManagerScreen() {
                   ...c,
                   firstName: parts[0] || "Unknown",
                   lastName: parts.slice(1).join(" ") || "",
-                  phone: data.phone,
+                  phone: data.phone_number,
                   tag: data.relationship as RelationshipTag,
-                  avatar: (data.linked_profile as any)?.avatar_url || "https://via.placeholder.com/150",
+                  isPrimary: data.is_emergency_contact,
+                  avatar: "https://via.placeholder.com/150",
                 }
               : c
           )
         );
-        setIsDrawerOpen(false);
-      }
-    } else {
-      // Add mode
-      const { data, error } = await supabase
-        .from("trusted_contacts")
-        .insert({
-          user_id: user.id,
-          name: drawerFullName.trim(),
-          phone: formattedPhone,
-          relationship: drawerTag,
-        })
-        .select(`
-          id,
-          name,
-          phone,
-          relationship,
-          is_active,
-          linked_profile:linked_profile_id (
-            avatar_url
-          )
-        `)
-        .single();
+      } else {
+        // Add mode
+        const data = await apiFetch<any>("/contacts", {
+          method: "POST",
+          body: JSON.stringify({
+            name: drawerFullName.trim(),
+            phone_number: formattedPhone,
+            relationship: drawerTag,
+            is_emergency_contact: drawerIsPrimary
+          })
+        });
 
-      setIsLoading(false);
-
-      if (error) {
-        setDrawerError(getFriendlyErrorMessage(error, "Failed to save contact."));
-      } else if (data) {
         const parts = data.name.split(" ");
         setContacts([
           ...contacts,
@@ -309,15 +251,19 @@ export default function ContactsManagerScreen() {
             id: data.id,
             firstName: parts[0] || "Unknown",
             lastName: parts.slice(1).join(" ") || "",
-            phone: data.phone,
+            phone: data.phone_number,
             tag: data.relationship as RelationshipTag,
-            isPrimary: false,
-            status: data.is_active ? ("active" as const) : ("disabled" as const),
-            avatar: (data.linked_profile as any)?.avatar_url || "https://via.placeholder.com/150",
+            isPrimary: data.is_emergency_contact,
+            status: data.opted_in ? "active" : "disabled",
+            avatar: "https://via.placeholder.com/150",
           },
         ]);
-        setIsDrawerOpen(false);
       }
+      setIsDrawerOpen(false);
+    } catch (error: any) {
+      setDrawerError(getFriendlyErrorMessage(error, "Failed to save contact."));
+    } finally {
+      setIsLoading(false);
     }
   };
 

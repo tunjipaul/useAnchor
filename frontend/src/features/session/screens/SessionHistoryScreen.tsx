@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle, AlertTriangle, Play, HelpCircle, History, ChevronRight, Filter, Plus } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
@@ -51,21 +51,15 @@ export default function SessionHistoryScreen() {
       if (!user) return;
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("anchor_sessions")
-          .select("id, title, destination_address, status, created_at, expected_end, actual_start")
-          .eq("user_id", user.id)
-          .neq("status", "draft") // exclude drafts
-          .is("deleted_at", null) // exclude soft deleted sessions
-          .order("created_at", { ascending: false });
+        const data = await apiFetch<any[]>("/sessions/history");
 
-        if (!error && data) {
+        if (data) {
           setHistory(
             data.map((s: any) => ({
               id: s.id,
               title: s.title,
               location: s.destination_address || "Unknown Location",
-              startedAt: s.actual_start || s.created_at,
+              startedAt: s.starts_at || new Date().toISOString(),
               status: s.status,
             }))
           );

@@ -4,7 +4,7 @@ import {
   AlertTriangle, Phone, Navigation, 
   MapPin, Route as RouteIcon, Info, Loader2
 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 
 export default function AlertLandingScreen() {
   const navigate = useNavigate();
@@ -24,31 +24,7 @@ export default function AlertLandingScreen() {
       }
 
       try {
-        const { data, error: fetchError } = await supabase
-          .from("alerts")
-          .select(`
-            id,
-            status,
-            trigger_type,
-            created_at,
-            location_lat,
-            location_lng,
-            location_address,
-            session:anchor_sessions!session_id (
-              title,
-              meet_person,
-              destination_address,
-              description
-            ),
-            profiles:profiles!user_id (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq("id", alertId)
-          .single();
-
-        if (fetchError) throw fetchError;
+        const data = await apiFetch<any>(`/alerts/${alertId}`);
 
         if (data) {
           setAlertData({
@@ -57,7 +33,7 @@ export default function AlertLandingScreen() {
             triggeredAt: data.created_at,
             triggerReason: data.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
             session: data.session,
-            profile: data.profiles,
+            profile: data.profile,
             location: {
               lat: data.location_lat,
               lng: data.location_lng,

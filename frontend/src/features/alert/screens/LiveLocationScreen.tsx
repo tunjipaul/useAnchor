@@ -3,8 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { MapPin, Shield, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
-import { supabase } from "../../../lib/supabase";
-import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { apiFetch } from "../../../lib/api";
 
 // Component to dynamically pan the map on coordinates updates
 function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
@@ -54,25 +53,7 @@ export default function LiveLocationScreen() {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
-        .from("alerts")
-        .select(`
-          id,
-          status,
-          trigger_type,
-          location_lat,
-          location_lng,
-          location_address,
-          created_at,
-          profiles:user_id (
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq("id", alertId)
-        .single();
-
-      if (fetchError) throw fetchError;
+      const data = await apiFetch<any>(`/alerts/${alertId}`);
 
       if (data) {
         setAlertData({
@@ -80,7 +61,7 @@ export default function LiveLocationScreen() {
           last_known_lat: data.location_lat,
           last_known_lng: data.location_lng,
           last_known_address: data.location_address,
-          profile: data.profiles,
+          profile: data.profile,
         });
       } else {
         setError("Alert incident not found.");
@@ -101,39 +82,30 @@ export default function LiveLocationScreen() {
     fetchLiveLocation();
   }, [alertId, user]);
 
-  // Subscribe to Live Coordinates changes in Realtime
+  // Subscribe to Live Coordinates changes in Realtime via polling
   useEffect(() => {
     if (!alertId) return;
 
-    const channel = supabase
-      .channel(`live-location-sync-${alertId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "alerts",
-          filter: `id=eq.${alertId}`,
-        },
-        (payload: any) => {
-          const updated = payload.new;
-          setAlertData((prev: any) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              status: updated.status,
-              last_known_lat: updated.location_lat,
-              last_known_lng: updated.location_lng,
-              last_known_address: updated.location_address || prev.last_known_address,
-            };
-          });
-        }
-      )
-      .subscribe();
+    const pollTimer = setInterval(async () => {
+      try {
+        const updated = await apiFetch<any>(`/alerts/${alertId}`);
+        if (!updated) return;
+        setAlertData((prev: any) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            status: updated.status,
+            last_known_lat: updated.location_lat,
+            last_known_lng: updated.location_lng,
+            last_known_address: updated.location_address || prev.last_known_address,
+          };
+        });
+      } catch (err) {
+        console.error("Poll error", err);
+      }
+    }, 5000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(pollTimer);
   }, [alertId]);
 
   if (isLoading) {

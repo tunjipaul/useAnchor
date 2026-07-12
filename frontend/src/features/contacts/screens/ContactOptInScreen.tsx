@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ShieldCheck, UserPlus, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 
 export default function ContactOptInScreen() {
   const navigate = useNavigate();
@@ -22,27 +22,16 @@ export default function ContactOptInScreen() {
       }
 
       try {
-        // Fetch details of the invite. We bypass RLS if we need to, but let's assume it's readable,
-        // or we fetch using a securely accessible way. If RLS blocks it, we might just show a generic prompt.
-        const { data, error: fetchError } = await supabase
-          .from("trusted_contacts")
-          .select("id, name, status, profiles:user_id(full_name)")
-          .eq("id", contactId)
-          .single();
-
-        if (fetchError) {
-          // If RLS blocks unauthenticated read, we just show a generic prompt
-          setContactInfo({ id: contactId, name: "there" });
-        } else if (data) {
-          setContactInfo({
-            id: data.id,
-            name: data.name,
-            inviterName: (data.profiles as any)?.full_name || "Someone",
-            status: data.status,
-          });
-          if (data.status === "accepted") {
-            setSuccess(true);
-          }
+        // Fetch details of the invite.
+        const data = await apiFetch<any>(`/contacts/${contactId}`);
+        setContactInfo({
+          id: data.id,
+          name: data.name,
+          inviterName: data.user_id ? "Anchor User" : "Someone",
+          status: data.opted_in ? "accepted" : "pending",
+        });
+        if (data.opted_in) {
+          setSuccess(true);
         }
       } catch (err) {
         setContactInfo({ id: contactId, name: "there" });
@@ -57,20 +46,13 @@ export default function ContactOptInScreen() {
   const handleAccept = async () => {
     setIsLoading(true);
     try {
-      // First try the RPC if it exists (as per requirements)
-      const { error: rpcError } = await supabase.rpc("opt_in_trusted_contact", {
-        p_contact_id: contactId,
+      await apiFetch("/contacts/opt-in", {
+        method: "POST",
+        body: JSON.stringify({
+          p_contact_id: parseInt(contactId),
+          p_token: "dummy-token"
+        })
       });
-
-      if (rpcError) {
-        // Fallback to direct update if RPC is missing
-        const { error: updateError } = await supabase
-          .from("trusted_contacts")
-          .update({ status: "accepted" })
-          .eq("id", contactId);
-
-        if (updateError) throw updateError;
-      }
       setSuccess(true);
     } catch (err: any) {
       console.error("Failed to accept invite:", err);

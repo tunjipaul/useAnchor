@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, MapPin, CheckCircle, AlertTriangle, Trash2, Loader2 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function SessionTimelineScreen() {
@@ -19,31 +19,15 @@ export default function SessionTimelineScreen() {
       if (!id) return;
       setIsLoading(true);
       try {
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("anchor_sessions")
-          .select("*")
-          .eq("id", id)
-          .single();
-
-        if (sessionError) throw sessionError;
+        const sessionData = await apiFetch<any>(`/sessions/${id}`);
         setSession(sessionData);
 
-        const { data: checkinData } = await supabase
-          .from("checkins")
-          .select("*")
-          .eq("session_id", id)
-          .order("sequence_number", { ascending: true });
-
+        const checkinData = await apiFetch<any[]>(`/sessions/${id}/checkins`);
         if (checkinData) {
           setCheckins(checkinData);
         }
 
-        const { data: alertData } = await supabase
-          .from("alerts")
-          .select("*")
-          .eq("session_id", id)
-          .order("created_at", { ascending: true });
-
+        const alertData = await apiFetch<any[]>(`/sessions/${id}/alerts`);
         if (alertData) {
           setAlerts(alertData);
         }
@@ -170,12 +154,7 @@ export default function SessionTimelineScreen() {
 
   const handleDelete = async () => {
     try {
-      const { error } = await supabase
-        .from("anchor_sessions")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", session.id);
-        
-      if (error) throw error;
+      await apiFetch(`/sessions/${session.id}`, { method: "DELETE" });
       navigate('/dashboard');
     } catch (e: any) {
       triggerToast(e.message || "Failed to delete session history record.");

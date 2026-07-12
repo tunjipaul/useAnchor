@@ -15,7 +15,7 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { useSession } from "../hooks/useSession";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -111,20 +111,11 @@ export default function CreateSessionScreen() {
     setStartSessionError(null);
     try {
       // 1. Fetch active session details
-      const { data: activeSession, error: fetchError } = await supabase
-        .from("anchor_sessions")
-        .select("id, session_version")
-        .eq("user_id", user.id)
-        .in("status", ["active", "emergency"])
-        .is("deleted_at", null)
-        .limit(1)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
+      const activeSession = await apiFetch<any>("/sessions/active");
 
       if (activeSession) {
         // 2. Complete the stuck session
-        await completeSession(activeSession.id, activeSession.session_version);
+        await completeSession(activeSession.id, activeSession.session_version || 1);
         
         // 3. Auto-retry starting the new session
         await handleStartSession();
@@ -143,30 +134,23 @@ export default function CreateSessionScreen() {
     async function loadContacts() {
       if (!user) return;
       setIsLoadingContacts(true);
-      const { data, error } = await supabase
-        .from("trusted_contacts")
-        .select(`
-          id,
-          name,
-          phone,
-          linked_profile:linked_profile_id (
-            avatar_url
-          )
-        `)
-        .eq("user_id", user.id)
-        .is("deleted_at", null);
-      
-      setIsLoadingContacts(false);
-      if (!error && data) {
-        setContacts(
-          data.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            phone: c.phone,
-            avatarUrl: c.linked_profile?.avatar_url || undefined,
-            selected: false,
-          }))
-        );
+      try {
+        const data = await apiFetch<any[]>("/contacts");
+        if (data) {
+          setContacts(
+            data.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              phone: c.phone_number,
+              avatarUrl: undefined,
+              selected: false,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoadingContacts(false);
       }
     }
     loadContacts();
@@ -210,26 +194,20 @@ export default function CreateSessionScreen() {
     const formattedPhone = phoneObj.number;
     
     setIsLoadingContacts(true);
-    // Add to DB
-    const { data, error } = await supabase
-      .from("trusted_contacts")
-      .insert({
-        user_id: user.id,
-        name: newContactName.trim(),
-        phone: formattedPhone,
-      })
-      .select()
-      .single();
+    try {
+      // Add to DB
+      const data = await apiFetch<any>("/contacts", {
+        method: "POST",
+        body: JSON.stringify({
+          name: newContactName.trim(),
+          phone_number: formattedPhone,
+        })
+      });
 
-    setIsLoadingContacts(false);
-
-    if (error) {
-      setAddContactError(getFriendlyErrorMessage(error, "Failed to add contact."));
-    } else if (data) {
       const newContact: Contact = {
         id: data.id,
         name: data.name,
-        phone: data.phone,
+        phone: data.phone_number,
         selected: true,
       };
       setContacts((prev) => [...prev, newContact]);
@@ -237,6 +215,10 @@ export default function CreateSessionScreen() {
       setNewContactPhone("");
       setAddContactError(null);
       setShowAddContact(false);
+    } catch (error: any) {
+      setAddContactError(getFriendlyErrorMessage(error, "Failed to add contact."));
+    } finally {
+      setIsLoadingContacts(false);
     }
   }
 

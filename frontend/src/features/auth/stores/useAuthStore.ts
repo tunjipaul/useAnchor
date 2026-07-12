@@ -1,19 +1,18 @@
 import { create } from "zustand";
-import { supabase } from "../../../lib/supabase";
-import type { Session, User } from "@supabase/supabase-js";
+import { apiFetch } from "../../../lib/api";
 
 export interface Profile {
-  id: string;
+  id: number | string;
+  phone: string;
   full_name: string | null;
   avatar_url: string | null;
   onboarding_completed: boolean;
-  created_at: string;
-  updated_at: string;
+  fcm_token: string | null;
 }
 
 interface AuthState {
-  session: Session | null;
-  user: User | null;
+  session: { access_token: string } | null;
+  user: any | null;
   profile: Profile | null;
   isLoading: boolean;
   initialize: () => Promise<void>;
@@ -32,103 +31,87 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     set({ isLoading: true });
     
-    // Get initial session
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
-    let profile: Profile | null = null;
-
-    if (user) {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      
-      if (!error && data) {
-        profile = data;
-      }
+    const token = localStorage.getItem("useanchor_access_token");
+    if (!token) {
+      set({ session: null, user: null, profile: null, isLoading: false });
+      return;
     }
 
-    set({ session, user, profile, isLoading: false });
-
-    // Set up auth subscriber for token refreshes / state changes
-    supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      const currentUser = currentSession?.user ?? null;
-      let currentProfile: Profile | null = null;
-
-      if (currentUser) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", currentUser.id)
-          .maybeSingle();
-        
-        if (!error && data) {
-          currentProfile = data;
-        }
-      }
-
+    try {
+      const profile = await apiFetch<Profile>("/profiles/me");
       set({ 
-        session: currentSession, 
-        user: currentUser, 
-        profile: currentProfile, 
+        session: { access_token: token }, 
+        user: profile, 
+        profile, 
         isLoading: false 
       });
-    });
+    } catch (error) {
+      // Token invalid or expired
+      localStorage.removeItem("useanchor_access_token");
+      set({ session: null, user: null, profile: null, isLoading: false });
+    }
   },
 
   signInWithOtp: async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-    });
-    return { error };
+    try {
+      await apiFetch("/auth/send-otp", {
+        method: "POST",
+        body: JSON.stringify({ phone }),
+      });
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
   },
 
   verifyOtp: async (phone: string, token: string) => {
-    const { error, data } = await supabase.auth.verifyOtp({
-      phone,
-      token,
-      type: "sms",
-    });
-    
-    if (!error && data.session) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", data.session.user.id)
-        .maybeSingle();
-      
-      set({ 
-        session: data.session, 
-        user: data.session.user, 
-        profile: profileData ?? null 
+    try {
+      const data = await apiFetch<{ access_token: string }>("/auth/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ phone, token }),
       });
+      
+      localStorage.setItem("useanchor_access_token", data.access_token);
+      
+      // Fetch profile after login
+      const profile = await apiFetch<Profile>("/profiles/me", {
+        headers: { Authorization: `Bearer ${data.access_token}` }
+      });
+
+      set({ 
+        session: { access_token: data.access_token }, 
+        user: profile, 
+        profile 
+      });
+      
+      return { error: null };
+    } catch (error) {
+      return { error };
     }
-    return { error };
   },
 
   updateProfile: async (updates: Partial<Profile>) => {
-    const user = get().user;
-    if (!user) return { error: new Error("User not authenticated.") };
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", user.id)
-      .select()
-      .single();
-
-    if (!error && data) {
-      set({ profile: data });
+    try {
+      const updatedProfile = await apiFetch<Profile>("/profiles/me", {
+        method: "PUT",
+        body: JSON.stringify(updates),
+      });
+      set({ profile: updatedProfile, user: updatedProfile });
+      return { error: null };
+    } catch (error) {
+      return { error };
     }
-    return { error };
   },
 
   logout: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch (error) {
+      console.warn("Logout request failed", error);
+    } finally {
+      localStorage.removeItem("useanchor_access_token");
       set({ session: null, user: null, profile: null });
     }
-    return { error };
+    return { error: null };
   },
 }));
