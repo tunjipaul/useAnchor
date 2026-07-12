@@ -23,12 +23,15 @@ try {
 export { messaging, onMessage };
 
 export async function requestNotificationPermission(): Promise<string | null> {
-  if (!messaging) return null;
-  
   try {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return null;
-    
+
+    if (!messaging) {
+      console.warn("FCM messaging not initialized. Permission granted but no token will be generated.");
+      return null;
+    }
+
     const token = await getToken(messaging, {
       vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
     });

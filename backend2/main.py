@@ -9,7 +9,17 @@ import database, models, schemas
 # Initialize DB
 models.Base.metadata.create_all(bind=database.engine)
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="useAnchor MVP Backend", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Security / JWT Utilities ---
 SECRET_KEY = "DUMMY_SECRET_FOR_MVP"
@@ -28,10 +38,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
             raise HTTPException(status_code=401, detail="Invalid credentials")
-    except jwt.PyJWTError:
+        user_id = int(user_id_str)
+    except (jwt.PyJWTError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid credentials")
         
     user = db.query(models.Profile).filter(models.Profile.id == user_id).first()
@@ -111,7 +122,7 @@ def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(database
         db.commit()
         db.refresh(user)
         
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/api/auth/logout")
@@ -354,6 +365,13 @@ def get_alert_details(alert_id: int, db: Session = Depends(database.get_db)):
 @app.get("/api/contacts", response_model=list[schemas.ContactResponse])
 def list_contacts(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     return db.query(models.TrustedContact).filter(models.TrustedContact.user_id == current_user.id).all()
+
+@app.get("/api/contacts/{contact_id}", response_model=schemas.ContactResponse)
+def get_contact(contact_id: int, db: Session = Depends(database.get_db)):
+    contact = db.query(models.TrustedContact).filter(models.TrustedContact.id == contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return contact
 
 @app.post("/api/contacts", response_model=schemas.ContactResponse)
 def create_contact(request: schemas.ContactCreate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):

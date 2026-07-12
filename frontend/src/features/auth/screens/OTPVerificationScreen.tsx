@@ -15,7 +15,7 @@ export default function OTPVerificationScreen() {
   // If we somehow arrived here without a phone number, send back to phone entry
   useEffect(() => {
     if (!phoneNumber) {
-      navigate("/auth/phone", { replace: true });
+      navigate(mode === "login" ? "/auth/login" : "/auth/signup", { replace: true });
     }
   }, [phoneNumber, navigate]);
 
@@ -123,7 +123,7 @@ export default function OTPVerificationScreen() {
         {/* Top Navigation */}
         <header className="w-full flex items-center justify-between px-2">
           <button
-            onClick={() => navigate("/auth/phone")}
+            onClick={() => navigate(mode === "login" ? "/auth/login" : "/auth/signup")}
             aria-label="Go back"
             className="w-10 h-10 flex items-center justify-center rounded-full active:scale-95 transition-transform hover:bg-[#ffe9e4]"
             style={{ color: "#261814" }}
@@ -218,7 +218,7 @@ export default function OTPVerificationScreen() {
             
             <button
               type="button"
-              onClick={() => navigate("/auth/phone")}
+              onClick={() => navigate(mode === "login" ? "/auth/login" : "/auth/signup")}
               className="text-[14px] font-semibold text-[#ac2d00] hover:underline underline-offset-4 active:opacity-75 transition-all"
             >
               Change Phone Number

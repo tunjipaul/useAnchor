@@ -46,10 +46,9 @@ export default function ContactOptInScreen() {
   const handleAccept = async () => {
     setIsLoading(true);
     try {
-      await apiFetch("/contacts/opt-in", {
+      await apiFetch(`/contacts/${contactId}/opt-in`, {
         method: "POST",
         body: JSON.stringify({
-          p_contact_id: parseInt(contactId),
           p_token: "dummy-token"
         })
       });

@@ -37,7 +37,6 @@ export default function DesktopHeader({
     // Mocking for MVP
     setActiveAlertsCount(0);
   }, [profile?.id]);
-  }, [profile?.id]);
 
   const handleEmergencySOS = async () => {
     if (isTriggeringSOS || !profile?.id) return;
