@@ -167,7 +167,10 @@ def delete_account(db: Session = Depends(database.get_db), current_user: models.
 # ==========================================
 @app.post("/api/sessions", response_model=schemas.SessionResponse)
 def create_session(request: schemas.SessionCreate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    new_session = models.AnchorSession(**request.dict(), user_id=current_user.id, status="draft")
+    session_data = request.dict()
+    if session_data.get("expected_end") and session_data["expected_end"].tzinfo:
+        session_data["expected_end"] = session_data["expected_end"].replace(tzinfo=None)
+    new_session = models.AnchorSession(**session_data, user_id=current_user.id, status="draft")
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
@@ -206,7 +209,8 @@ def extend_session(session_id: int, request: SessionExtendRequest, db: Session =
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    session.expected_end = datetime.datetime.fromisoformat(request.new_expected_end.replace('Z', '+00:00'))
+    dt = datetime.datetime.fromisoformat(request.new_expected_end.replace('Z', '+00:00'))
+    session.expected_end = dt.replace(tzinfo=None) if dt.tzinfo else dt
     session.session_version = (session.session_version or 1) + 1
     db.commit()
     return {"message": "Session extended successfully"}
