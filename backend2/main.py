@@ -211,7 +211,6 @@ def extend_session(session_id: int, request: SessionExtendRequest, db: Session =
     
     dt = datetime.datetime.fromisoformat(request.new_expected_end.replace('Z', '+00:00'))
     session.expected_end = dt.replace(tzinfo=None) if dt.tzinfo else dt
-    session.session_version = (session.session_version or 1) + 1
     db.commit()
     return {"message": "Session extended successfully"}
 

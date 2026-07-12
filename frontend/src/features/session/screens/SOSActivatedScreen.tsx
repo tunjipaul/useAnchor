@@ -70,7 +70,8 @@ export default function SOSActivatedScreen() {
     setIsLoading(true);
     try {
       await apiFetch(`/alerts/${activeAlert.id}/cancel`, {
-        method: "POST"
+        method: "POST",
+        body: JSON.stringify({ p_alert_id: activeAlert.id })
       });
 
       navigate("/dashboard");
