@@ -41,5 +41,27 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     throw error;
   }
 
-  return data as T;
+  // Recursively add 'Z' to naive datetime strings to force UTC interpretation
+  const forceUTC = (obj: any): any => {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(obj)) {
+        return obj + 'Z';
+      }
+      return obj;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(forceUTC);
+    }
+    if (typeof obj === 'object') {
+      const newObj: any = {};
+      for (const key in obj) {
+        newObj[key] = forceUTC(obj[key]);
+      }
+      return newObj;
+    }
+    return obj;
+  };
+
+  return forceUTC(data) as T;
 }

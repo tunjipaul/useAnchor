@@ -17,6 +17,7 @@ export function useSession() {
       destination_lng?: number;
       durationMinutes: number;
       notes?: string;
+      startDate?: Date;
     },
     selectedContactIds: string[]
   ) => {
@@ -25,7 +26,8 @@ export function useSession() {
     setError(null);
 
     try {
-      const expectedEnd = new Date(new Date().getTime() + sessionData.durationMinutes * 60000).toISOString();
+      const baseTime = sessionData.startDate ? sessionData.startDate.getTime() : new Date().getTime();
+      const expectedEnd = new Date(baseTime + sessionData.durationMinutes * 60000).toISOString();
 
       // Step 1: Create session
       const session = await apiFetch<any>("/sessions", {

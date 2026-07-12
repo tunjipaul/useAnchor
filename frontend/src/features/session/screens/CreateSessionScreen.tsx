@@ -238,6 +238,7 @@ export default function CreateSessionScreen() {
           destination_lng: lng || undefined,
           durationMinutes,
           notes: notes || undefined,
+          startDate: new Date(`${date}T${time}:00`),
         },
         selectedContactIds
       );
