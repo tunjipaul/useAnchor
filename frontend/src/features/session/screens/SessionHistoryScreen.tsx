@@ -16,7 +16,7 @@ const getStatusConfig = (session: any) => {
       Icon: AlertTriangle,
     };
   }
-  if (session.status === "completed") {
+  if (session.status === "ended" || session.status === "completed") {
     return {
       label: "Ended Safely",
       bg: "bg-[#1D9E75]/10",
