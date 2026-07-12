@@ -517,7 +517,7 @@ export default function HomeScreen() {
                               />
                             </div>
                             <div className="flex justify-between text-[11px] text-[#5a413a] pt-1">
-                              <span>Started: {new Date(activeSession.actual_start || activeSession.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span>Started: {new Date(activeSession.starts_at || activeSession.expected_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               <span>Pulsing real-time synchronization</span>
                             </div>
                           </div>

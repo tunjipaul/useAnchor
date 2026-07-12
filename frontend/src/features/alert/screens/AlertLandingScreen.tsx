@@ -30,7 +30,7 @@ export default function AlertLandingScreen() {
           setAlertData({
             id: data.id,
             status: data.status,
-            triggeredAt: data.created_at,
+            triggeredAt: data.triggered_at,
             triggerReason: data.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
             session: data.session,
             profile: data.profile,

@@ -40,7 +40,7 @@ export default function SOSActivatedScreen() {
           setSession({
             id: sessionData.id,
             title: sessionData.title,
-            startedAt: sessionData.starts_at || sessionData.created_at,
+            startedAt: sessionData.starts_at || sessionData.expected_end,
             durationMinutes: sessionData.checkin_interval_minutes || 30,
             sosTriggeredAt: sessionData.updated_at,
             contacts: [], // mock for MVP

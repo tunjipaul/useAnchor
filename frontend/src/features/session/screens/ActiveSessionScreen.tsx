@@ -105,12 +105,12 @@ export default function ActiveSessionScreen() {
           personName: data.meet_person || "Unknown",
           phone: data.meet_phone || "",
           location: data.destination_address || "Unknown Location",
-          date: new Date(data.created_at).toISOString().split("T")[0],
-          time: new Date(data.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          date: new Date(data.starts_at || data.expected_end).toISOString().split("T")[0],
+          time: new Date(data.starts_at || data.expected_end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           durationMinutes: data.checkin_interval_minutes || 30,
           notes: data.description || "",
           contacts: [], // Mocked for MVP
-          startedAt: data.starts_at || data.created_at,
+          startedAt: data.starts_at || data.expected_end,
           status: data.status,
           version: data.session_version,
           checkIns: [],
@@ -127,6 +127,7 @@ export default function ActiveSessionScreen() {
     } catch (e: any) {
       console.error("Error loading active safety session", e);
       setErrorMsg(e.message || "Failed to load active safety session.");
+      navigate("/dashboard");
     } finally {
       setIsLoading(false);
     }

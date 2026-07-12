@@ -94,10 +94,10 @@ export default function IncidentDetailsScreen() {
             userName: "Unknown User",
             userAvatar: "https://via.placeholder.com/150",
             userPhone: "",
-            triggeredAt: data.created_at,
+            triggeredAt: data.triggered_at,
             triggerReason: "SOS Triggered",
             sessionTitle: data.title || "Active Safety Session",
-            actualStart: data.actual_start || data.created_at,
+            actualStart: data.starts_at || data.expected_end,
             expectedEnd: data.expected_end,
             status: data.status === "active" ? "active" : "resolved",
             lastKnownLocation: {
