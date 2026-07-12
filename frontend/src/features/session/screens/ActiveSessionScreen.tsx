@@ -111,6 +111,7 @@ export default function ActiveSessionScreen() {
           notes: data.description || "",
           contacts: [], // Mocked for MVP
           startedAt: data.starts_at || data.expected_end,
+          expectedEnd: data.expected_end,
           status: data.status,
           version: data.session_version,
           checkIns: [],
@@ -170,6 +171,7 @@ export default function ActiveSessionScreen() {
               status: updated.status,
               version: updated.session_version || prev.version,
               durationMinutes: updated.checkin_interval_minutes,
+              expectedEnd: updated.expected_end,
             };
           });
           const end = new Date(updated.expected_end).getTime();
@@ -239,9 +241,19 @@ export default function ActiveSessionScreen() {
         });
       }
 
-      // Reset timer to original duration
-      const duration = (session.durationMinutes || 30) * 60;
-      setTimeLeft(duration);
+      // Auto-extend by the default check-in interval on a successful safe check-in
+      const duration = session.durationMinutes || 30;
+      const newExpectedEnd = new Date(Date.now() + duration * 60000).toISOString();
+      await apiFetch(`/sessions/${session.id}/extend`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_session_id: session.id,
+          p_current_version: session.version,
+          new_expected_end: newExpectedEnd
+        })
+      });
+
+      setTimeLeft(duration * 60);
       setShowCheckInPrompt(false);
 
       // Refresh session state to sync with database updates
@@ -284,8 +296,8 @@ export default function ActiveSessionScreen() {
     setErrorMsg(null);
 
     try {
-      const currentExpectedEnd = new Date(session.startedAt).getTime() + (session.durationMinutes + minutes) * 60000;
-      const newExpectedEnd = new Date(currentExpectedEnd).toISOString();
+      const currentExpectedEnd = new Date(session.expectedEnd).getTime();
+      const newExpectedEnd = new Date(currentExpectedEnd + minutes * 60000).toISOString();
 
       await apiFetch(`/sessions/${session.id}/extend`, {
         method: "POST",
