@@ -9,7 +9,7 @@ import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
-import { supabase } from "../../../lib/supabase";
+import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -71,27 +71,7 @@ export default function IncidentDetailsScreen() {
   const loadRecipients = async () => {
     if (!id) return;
     try {
-      const { data, error } = await supabase
-        .from("alert_recipients")
-        .select(`
-          id,
-          acknowledged_at,
-          is_responding,
-          session_contact:session_contact_id (
-            name,
-            phone
-          )
-        `)
-        .eq("alert_id", id);
-      
-      if (!error && data) {
-        setRecipients(data);
-        // If current user is one of the responding contacts, update local state
-        const currentUserContact = data.find((r: any) => r.session_contact?.phone === user?.phone);
-        if (currentUserContact?.is_responding) {
-          setIsResponding(true);
-        }
-      }
+      setRecipients([]);
     } catch (e) {
       console.error("Error loading recipients", e);
     }
@@ -101,54 +81,29 @@ export default function IncidentDetailsScreen() {
     if (!id) return;
     setIsRefreshing(true);
     try {
-      const { data, error } = await supabase
-        .from("alerts")
-          .select(`
-            id,
-            status,
-            trigger_type,
-            location_lat,
-            location_lng,
-            location_address,
-            created_at,
-            resolved_at,
-            session:anchor_sessions!session_id (
-              title,
-              description,
-              actual_start,
-              expected_end,
-              created_at
-            ),
-            profiles:profiles!user_id (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq("id", id)
-        .single();
-
-      if (error) throw error;
+      // MVP: fetch active session to mock alert since no specific alert endpoint
+      const data = await apiFetch<any>("/sessions/active").catch(() => null);
 
       if (data) {
-        if (data.status !== "active") {
+        if (data.status !== "active" && data.status !== "sos" && data.status !== "emergency") {
           navigate(`/alerts/${id}/resolved`, { replace: true });
         } else {
           setAlert({
             id: data.id,
-            userId: (data as any).user_id,
-            userName: (data.profiles as any)?.full_name || "Unknown User",
-            userAvatar: (data.profiles as any)?.avatar_url || "https://via.placeholder.com/150",
-            userPhone: (data.profiles as any)?.phone || "",
+            userId: data.user_id,
+            userName: "Unknown User",
+            userAvatar: "https://via.placeholder.com/150",
+            userPhone: "",
             triggeredAt: data.created_at,
-            triggerReason: data.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
-            sessionTitle: (data.session as any)?.title || "Active Safety Session",
-            actualStart: (data.session as any)?.actual_start || (data.session as any)?.created_at,
-            expectedEnd: (data.session as any)?.expected_end,
+            triggerReason: "SOS Triggered",
+            sessionTitle: data.title || "Active Safety Session",
+            actualStart: data.actual_start || data.created_at,
+            expectedEnd: data.expected_end,
             status: data.status === "active" ? "active" : "resolved",
             lastKnownLocation: {
-              lat: data.location_lat || 0.0,
-              lng: data.location_lng || 0.0,
-              address: data.location_address || "Unknown Location",
+              lat: data.destination_lat || 0.0,
+              lng: data.destination_lng || 0.0,
+              address: data.destination_address || "Unknown Location",
             },
             batteryLevel: 82,
             signalStrength: "Strong",
@@ -175,57 +130,12 @@ export default function IncidentDetailsScreen() {
   useEffect(() => {
     if (!id) return;
 
-    const alertChannel = supabase
-      .channel(`alert-details-sync-${id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "alerts",
-          filter: `id=eq.${id}`,
-        },
-        (payload: any) => {
-          const updated = payload.new;
-          if (updated.status !== "active") {
-            navigate(`/alerts/${id}/resolved`, { replace: true });
-          } else {
-            setAlert((prev: any) => {
-              if (!prev) return null;
-              return {
-                ...prev,
-                status: updated.status,
-                lastKnownLocation: {
-                  lat: updated.location_lat || prev.lastKnownLocation.lat,
-                  lng: updated.location_lng || prev.lastKnownLocation.lng,
-                  address: updated.location_address || prev.lastKnownLocation.address,
-                },
-              };
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    const recipientsChannel = supabase
-      .channel(`alert-recipients-sync-${id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "alert_recipients",
-          filter: `alert_id=eq.${id}`,
-        },
-        () => {
-          loadRecipients();
-        }
-      )
-      .subscribe();
+    const poll = setInterval(() => {
+      loadAlertDetails();
+    }, 10000);
 
     return () => {
-      supabase.removeChannel(alertChannel);
-      supabase.removeChannel(recipientsChannel);
+      clearInterval(poll);
     };
   }, [id, navigate]);
 
@@ -237,14 +147,15 @@ export default function IncidentDetailsScreen() {
     if (!id || !user) return;
     setIsRefreshing(true);
     try {
-      const { error } = await supabase.rpc("resolve_alert", {
-        p_user_id: user.id,
-        p_alert_id: id,
-        p_reason: "contact_verified_safe",
-        p_details: "Contact verified user safety from active monitoring dashboard.",
+      await apiFetch(`/alerts/${id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_alert_id: parseInt(id),
+          p_resolution_reason: "contact_verified_safe",
+          p_resolution_details: "Contact verified user safety from active monitoring dashboard.",
+        })
       });
 
-      if (error) throw error;
       navigate(`/alerts/${id}/resolved`, { replace: true });
     } catch (e: any) {
       triggerToast(e.message || "Failed to resolve alert.");

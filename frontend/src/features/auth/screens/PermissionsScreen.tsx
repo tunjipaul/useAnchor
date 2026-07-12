@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, MapPin, Bell, Mic, ShieldAlert, CheckCircle2, ChevronRight } from "lucide-react";
 import { usePushNotifications } from "../../session/hooks/usePushNotifications";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
-import { supabase } from "../../../lib/supabase";
+
 
 export default function PermissionsScreen() {
   const navigate = useNavigate();
@@ -66,7 +66,8 @@ export default function PermissionsScreen() {
       if (token || Notification.permission === "granted") {
         setNotificationStatus("granted");
         if (token && user) {
-          await supabase.from("profiles").update({ fcm_token: token }).eq("id", user.id);
+          // For MVP, just log the token
+          console.log("FCM Token:", token);
         }
       } else {
         setNotificationStatus("denied");

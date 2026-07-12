@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Bell, Search, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../features/auth/stores/useAuthStore";
-import { supabase } from "../lib/supabase";
+import { apiFetch } from "../lib/api";
 
 interface DesktopHeaderProps {
   showSearch?: boolean;
@@ -34,44 +34,9 @@ export default function DesktopHeader({
 
   // Sync active alerts count
   useEffect(() => {
-    if (!profile?.id) return;
-
-    const fetchAlertCount = async () => {
-      try {
-        const { count, error } = await supabase
-          .from("alerts")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "active");
-
-        if (!error && count !== null) {
-          setActiveAlertsCount(count);
-        }
-      } catch (err) {
-        console.error("Error fetching alert count:", err);
-      }
-    };
-
-    fetchAlertCount();
-
-    // Listen for alert changes in real-time
-    const channel = supabase
-      .channel("header-alerts-count")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "alerts",
-        },
-        () => {
-          fetchAlertCount();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Mocking for MVP
+    setActiveAlertsCount(0);
+  }, [profile?.id]);
   }, [profile?.id]);
 
   const handleEmergencySOS = async () => {
@@ -80,86 +45,47 @@ export default function DesktopHeader({
 
     try {
       // 1. Check if there is an active or emergency session
-      const { data: currentSession, error: sessionFetchError } = await supabase
-        .from("anchor_sessions")
-        .select("id, status")
-        .eq("user_id", profile.id)
-        .in("status", ["active", "emergency"])
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (sessionFetchError) throw sessionFetchError;
-
+      const currentSession = await apiFetch<any>("/sessions/active").catch(() => null);
       let targetSessionId = currentSession?.id;
 
-      // If the active session is already in emergency, go straight to the SOS view
-      if (currentSession?.status === "emergency") {
+      if (currentSession?.status === "emergency" || currentSession?.status === "sos") {
         navigate("/session/sos");
         return;
       }
 
-      // If we don't have an active session, create a default emergency one
       if (!targetSessionId) {
         const now = new Date();
-        const durationMinutes = 30;
-        const expectedEnd = new Date(now.getTime() + durationMinutes * 60000).toISOString();
-
-        const { data: newSession, error: insertError } = await supabase
-          .from("anchor_sessions")
-          .insert({
-            user_id: profile.id,
+        const expectedEnd = new Date(now.getTime() + 30 * 60000).toISOString();
+        
+        const newSession = await apiFetch<any>("/sessions", {
+          method: "POST",
+          body: JSON.stringify({
             title: "Quick SOS Alert",
             expected_end: expectedEnd,
             checkin_interval_minutes: 15,
-            status: "draft",
-            source_client: "web",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+            meet_person: "Emergency",
+            destination_address: "Quick SOS Location"
           })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        if (!newSession) throw new Error("Failed to create quick SOS session.");
-
+        });
         targetSessionId = newSession.id;
 
-        // Auto-link any trusted contacts
-        const { data: contacts } = await supabase
-          .from("trusted_contacts")
-          .select("id")
-          .eq("user_id", profile.id);
-
-        if (contacts && contacts.length > 0) {
-          const { error: contactsError } = await supabase.rpc("add_session_contacts", {
-            p_user_id: profile.id,
-            p_session_id: targetSessionId,
-            p_trusted_contact_ids: contacts.map((c: any) => c.id),
-          });
-          if (contactsError) throw contactsError;
-        }
-
-        // Start the session
-        const { error: startError } = await supabase.rpc("start_anchor_session", {
-          p_user_id: profile.id,
-          p_session_id: targetSessionId,
-          p_current_version: 1,
+        await apiFetch(`/sessions/${targetSessionId}/start`, { 
+          method: "POST", 
+          body: JSON.stringify({ p_session_id: targetSessionId, p_current_version: 1 }) 
         });
-        if (startError) throw startError;
       }
 
-      // 2. Trigger the active emergency alert (Manual SOS)
-      const { error: triggerError } = await supabase.rpc("trigger_alert", {
-        p_user_id: profile.id,
-        p_session_id: targetSessionId,
-        p_trigger_type: "manual_sos",
-        p_lat: 0.0,
-        p_lng: 0.0,
-        p_accuracy: 1.0,
-        p_address: "Quick SOS Location",
+      await apiFetch("/alerts/trigger", {
+        method: "POST",
+        body: JSON.stringify({
+          p_session_id: targetSessionId,
+          p_trigger_type: "manual_sos",
+          p_lat: 0.0,
+          p_lng: 0.0,
+          p_accuracy: 1.0,
+          p_address: "Quick SOS Location",
+        })
       });
-      if (triggerError) throw triggerError;
 
       // 3. Navigate to SOS Activated Screen
       navigate("/session/sos");

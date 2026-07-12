@@ -7,7 +7,7 @@ import {
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
 import MobileBottomNav from "../../../components/MobileBottomNav";
-import { supabase } from "../../../lib/supabase";
+
 
 export default function IncidentResolvedScreen() {
   const { id } = useParams<{ id: string }>();
@@ -18,58 +18,20 @@ export default function IncidentResolvedScreen() {
     async function loadResolvedAlert() {
       if (!id) return;
       try {
-        const { data, error } = await supabase
-          .from("alerts")
-          .select(`
-            id,
-            status,
-            trigger_type,
-            created_at,
-            resolved_at,
-            resolution_reason,
-            resolution_notes,
-            session_id,
-            profile:user_id (
-              full_name
-            )
-          `)
-          .eq("id", id)
-          .single();
-
-        if (error) throw error;
-
-        if (data) {
-          if (data.status !== "active") {
-            const durationMin = data.resolved_at && data.created_at
-              ? Math.max(1, Math.round((new Date(data.resolved_at).getTime() - new Date(data.created_at).getTime()) / 60000))
-              : 0;
-              
-            const reasonMap: Record<string, string> = {
-              user_safe_entry: "Safe check-in",
-              contact_verified_safe: "Contact verified",
-              owner_resolved: "Resolved by owner",
-              system_resolved: "System resolved",
-            };
-
-            setAlert({
-              id: data.id,
-              sessionId: data.session_id,
-              userName: (data.profile as any)?.full_name || "Unknown User",
-              triggeredAt: data.created_at,
-              resolvedAt: data.resolved_at,
-              triggerReason: data.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
-              status: data.status,
-              resolutionTime: data.resolved_at ? new Date(data.resolved_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Unknown",
-              incidentDuration: `${durationMin} minutes`,
-              finalStatus: reasonMap[data.resolution_reason || ""] || data.resolution_reason || "Resolved",
-              notes: data.resolution_notes || ""
-            });
-          } else {
-            navigate(`/alerts/${id}`, { replace: true });
-          }
-        } else {
-          navigate("/alerts");
-        }
+        // Mock for MVP since no alerts endpoint exists
+        setAlert({
+          id: id,
+          sessionId: id,
+          userName: "Unknown User",
+          triggeredAt: new Date().toISOString(),
+          resolvedAt: new Date().toISOString(),
+          triggerReason: "SOS Triggered",
+          status: "resolved",
+          resolutionTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          incidentDuration: "5 minutes",
+          finalStatus: "Resolved",
+          notes: "Incident concluded securely."
+        });
       } catch (e) {
         console.error("Failed to load resolved alert:", e);
         navigate("/alerts");

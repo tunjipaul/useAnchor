@@ -7,7 +7,7 @@ import {
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
 import MobileBottomNav from "../../../components/MobileBottomNav";
-import { supabase } from "../../../lib/supabase";
+
 import type { AlertData } from "../utils/alertStore";
 
 export default function EmergencyAlertsScreen() {
@@ -22,49 +22,8 @@ export default function EmergencyAlertsScreen() {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const { data, error } = await supabase
-        .from("alerts")
-        .select(`
-          id,
-          status,
-          trigger_type,
-          location_address,
-          created_at,
-          resolved_at,
-          session:anchor_sessions!session_id (
-            title
-          ),
-          profiles:profiles!user_id (
-            full_name,
-            avatar_url
-          )
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      if (data) {
-        setAlerts(
-          data.map((item: any) => ({
-            id: item.id,
-            userId: (item as any).user_id,
-            userName: (item.profiles as any)?.full_name || "Unknown User",
-            userAvatar: (item.profiles as any)?.avatar_url || "https://via.placeholder.com/150",
-            triggeredAt: item.created_at,
-            resolvedAt: item.resolved_at,
-            triggerReason: item.trigger_type === "missed_checkin" ? "Missed Check-In" : "SOS Triggered",
-            sessionTitle: (item.session as any)?.title || "Safety Session",
-            status: item.status === "active" ? "active" : "resolved",
-            lastKnownLocation: {
-              lat: 0,
-              lng: 0,
-              address: item.location_address || "Unknown Location",
-            },
-            batteryLevel: 82,
-            signalStrength: "Strong",
-          }))
-        );
-      }
+      // Mock for MVP: No alerts endpoint yet
+      setAlerts([]);
     } catch (e: any) {
       console.error("Error loading alerts:", e);
       setErrorMsg("Unable to load emergency alerts. Please check your connection and try again.");
@@ -75,25 +34,6 @@ export default function EmergencyAlertsScreen() {
 
   useEffect(() => {
     loadAlerts();
-
-    const alertsChannel = supabase
-      .channel("emergency-alerts-feed-sync")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "alerts",
-        },
-        () => {
-          loadAlerts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(alertsChannel);
-    };
   }, []);
 
   const filteredAlerts = alerts.filter(alert => {
