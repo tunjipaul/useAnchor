@@ -4,6 +4,7 @@ import { MapPin, Shield, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react"
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import { apiFetch } from "../../../lib/api";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
 
 // Component to dynamically pan the map on coordinates updates
 function RecenterMap({ lat, lng }: { lat: number; lng: number }) {

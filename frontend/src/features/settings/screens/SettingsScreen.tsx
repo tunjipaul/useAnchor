@@ -163,7 +163,7 @@ export default function SettingsScreen() {
               </div>
               <div>
                 <h3 className="text-[16px] font-semibold text-[#261814]">{profile?.full_name || "User"}</h3>
-                <p className="text-[13px] text-[#5a413a]">Member since {new Date(profile?.created_at || Date.now()).toLocaleDateString([], { month: 'short', year: 'numeric' })}</p>
+                <p className="text-[13px] text-[#5a413a]">Member since {new Date((profile as any)?.created_at || Date.now()).toLocaleDateString([], { month: 'short', year: 'numeric' })}</p>
               </div>
             </div>
             {/* Form fields */}
@@ -413,7 +413,7 @@ export default function SettingsScreen() {
                       </div>
                       <div className="text-left">
                         <h3 className="text-[18px] font-semibold text-[#261814]">{profile?.full_name || "User"}</h3>
-                        <p className="text-[14px] text-[#5a413a]">Member since {new Date(profile?.created_at || Date.now()).toLocaleDateString([], { month: 'short', year: 'numeric' })}</p>
+                        <p className="text-[14px] text-[#5a413a]">Member since {new Date((profile as any)?.created_at || Date.now()).toLocaleDateString([], { month: 'short', year: 'numeric' })}</p>
                       </div>
                     </div>
 
