@@ -237,7 +237,7 @@ def get_session_details(session_id: int, db: Session = Depends(database.get_db),
 
 @app.get("/api/sessions/{session_id}/checkins")
 def get_session_checkins(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    return db.query(models.Checkin).filter(models.Checkin.session_id == session_id).order_by(models.Checkin.sequence_number).all()
+    return db.query(models.Checkin).filter(models.Checkin.session_id == session_id).order_by(models.Checkin.id).all()
 
 @app.get("/api/sessions/{session_id}/alerts")
 def get_session_alerts(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):

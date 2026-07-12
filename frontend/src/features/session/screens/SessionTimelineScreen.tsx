@@ -66,37 +66,37 @@ export default function SessionTimelineScreen() {
     return new Date(isoString).toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
-  const durationStr = (session.actual_end || session.endedAt) && (session.actual_start || session.startedAt || session.created_at || session.createdAt)
-    ? Math.max(1, Math.round((new Date(session.actual_end || session.endedAt).getTime() - new Date(session.actual_start || session.startedAt || session.created_at || session.createdAt).getTime()) / 60000)) + " Minutes"
-    : (session.checkin_interval_minutes || session.durationMinutes || 30) + " Minutes";
+  const sessionStart = session.starts_at || new Date().toISOString();
+  const sessionEnd = session.expected_end || new Date().toISOString();
+  const durationStr = Math.max(1, Math.round((new Date(sessionEnd).getTime() - new Date(sessionStart).getTime()) / 60000)) + " Minutes";
 
   // Build timeline events dynamically from DB records
   const events: any[] = [
     { 
       type: 'start', 
-      time: session.actual_start || session.startedAt || session.created_at || session.createdAt, 
+      time: sessionStart, 
       title: 'Session Started', 
       description: `Tracking initiated for '${session.title}' route.`,
       dotColor: 'bg-[#ac2d00]',
     }
   ];
 
-  checkins.forEach((checkIn: any) => {
-    if (checkIn.status === 'completed') {
+  checkins.forEach((checkIn: any, index: number) => {
+    if (checkIn.completed_at) {
       events.push({ 
         type: 'checkin', 
-        time: checkIn.actual_response_time || checkIn.updated_at, 
-        title: 'Check-in: Safe', 
-        description: `Scheduled checkpoint #${checkIn.sequence_number} confirmed successful.`,
+        time: checkIn.completed_at, 
+        title: `Check-in: ${checkIn.response === 'safe' ? 'Safe' : checkIn.response === 'extend' ? 'Extended' : 'Completed'}`, 
+        description: `Scheduled checkpoint #${index + 1} confirmed successful.`,
         dotColor: 'bg-[#00628c]',
         icon: <CheckCircle size={16} className="text-[#00628c]" />
       });
-    } else if (checkIn.status === 'missed') {
+    } else if (checkIn.response === 'missed') {
       events.push({ 
         type: 'missed', 
-        time: checkIn.deadline_time, 
+        time: checkIn.scheduled_for, 
         title: 'Missed Check-In', 
-        description: `Checkpoint #${checkIn.sequence_number} was missed by the user.`,
+        description: `Checkpoint #${index + 1} was missed by the user.`,
         dotColor: 'bg-[#954831]',
       });
     }
@@ -106,37 +106,29 @@ export default function SessionTimelineScreen() {
     events.push({ 
       type: 'sos', 
       id: alertItem.id,
-      time: alertItem.created_at, 
+      time: alertItem.triggered_at, 
       title: alertItem.trigger_type === 'missed_checkin' ? 'Missed Check-In Alert' : 'SOS Triggered', 
-      description: `Emergency alert dispatched to safety contacts. Status: ${alertItem.status.toUpperCase()}.`,
+      description: `Emergency alert dispatched to safety contacts.`,
       dotColor: 'bg-[#ba1a1a]',
       isProminent: true,
       icon: <AlertTriangle size={20} className="text-[#ba1a1a]" />
     });
 
-    if (alertItem.status === 'resolved') {
+    if (alertItem.resolved_at) {
       events.push({ 
         type: 'resolved', 
-        time: alertItem.resolved_at || alertItem.updated_at, 
+        time: alertItem.resolved_at, 
         title: 'SOS Resolved', 
-        description: `Alert resolved: ${alertItem.resolution_reason || 'Verified Safe'}. Details: ${alertItem.resolution_notes || ''}`,
+        description: `Alert resolved: ${alertItem.resolution_reason || 'Verified Safe'}.`,
         dotColor: 'bg-[#1D9E75]',
       });
     }
   });
 
-  if (session.actual_end || session.endedAt) {
+  if (session.status === 'ended') {
     events.push({ 
       type: 'end', 
-      time: session.actual_end || session.endedAt, 
-      title: 'Session Ended', 
-      description: `Tracking concluded successfully (Reason: ${session.completion_reason || session.completionReason || 'safe'}).`,
-      dotColor: 'bg-[#5a413a]',
-    });
-  } else if (session.status === 'completed') {
-    events.push({ 
-      type: 'end', 
-      time: session.updated_at || session.endedAt, 
+      time: sessionEnd, 
       title: 'Session Ended', 
       description: 'Tracking concluded successfully.',
       dotColor: 'bg-[#5a413a]', 
@@ -182,7 +174,7 @@ export default function SessionTimelineScreen() {
           <div className="flex justify-between items-start mb-3">
             <div>
               <p className="text-[10px] font-bold text-[#5a413a] uppercase tracking-widest mb-1">Session with</p>
-              <h2 className="text-[18px] font-semibold">{session.meet_person || session.personName || 'No contact specified'}</h2>
+              <h2 className="text-[18px] font-semibold">{session.title || 'No title specified'}</h2>
             </div>
             <span className="bg-[#ECFDF5] text-[#065F46] text-[10px] px-2 py-1 rounded-full uppercase font-bold border border-[#A7F3D0]">
               Ended Safely
@@ -196,7 +188,7 @@ export default function SessionTimelineScreen() {
             <div>
               <p className="text-[12px] font-medium text-[#5a413a]">Date</p>
               <p className="text-[16px] font-semibold">
-                {formatDate(session.actual_start || session.startedAt || session.created_at || session.createdAt)}, {formatTime(session.actual_start || session.startedAt || session.created_at || session.createdAt)}
+                {formatDate(sessionStart)}, {formatTime(sessionStart)}
               </p>
             </div>
           </div>
