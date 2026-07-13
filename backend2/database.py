@@ -1,12 +1,23 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./useanchor.db"
+# Load environment variables from .env file
+load_dotenv()
+
+# Fallback to local SQLite if DATABASE_URL is not set
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./useanchor.db")
+
+# If it's SQLite, we need connect_args={"check_same_thread": False}. 
+# For PostgreSQL (Neon), we do not.
+connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, connect_args=connect_args
 )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -17,3 +28,4 @@ def get_db():
         yield db
     finally:
         db.close()
+

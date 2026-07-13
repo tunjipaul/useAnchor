@@ -9,20 +9,26 @@ import database, models, schemas
 # Initialize DB
 models.Base.metadata.create_all(bind=database.engine)
 
+import os
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="useAnchor MVP Backend", version="2.0.0")
 
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # --- Security / JWT Utilities ---
-SECRET_KEY = "DUMMY_SECRET_FOR_MVP"
+SECRET_KEY = os.getenv("SECRET_KEY", "DUMMY_SECRET_FOR_MVP")
 ALGORITHM = "HS256"
 
 security = HTTPBearer()
