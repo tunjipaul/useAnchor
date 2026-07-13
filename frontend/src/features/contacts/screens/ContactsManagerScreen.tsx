@@ -68,7 +68,6 @@ export default function ContactsManagerScreen() {
           tag: c.relationship as RelationshipTag,
           isPrimary: c.is_emergency_contact,
           status: c.opted_in ? "active" : "disabled",
-          avatar: "https://via.placeholder.com/150",
         };
       });
       setContacts(mapped);
@@ -144,7 +143,6 @@ export default function ContactsManagerScreen() {
           tag: data.relationship as RelationshipTag,
           isPrimary: data.is_emergency_contact,
           status: data.opted_in ? "active" : "disabled",
-          avatar: "https://via.placeholder.com/150",
         },
       ]);
       setNewFirstName("");
@@ -227,7 +225,6 @@ export default function ContactsManagerScreen() {
                   phone: data.phone_number,
                   tag: data.relationship as RelationshipTag,
                   isPrimary: data.is_emergency_contact,
-                  avatar: "https://via.placeholder.com/150",
                 }
               : c
           )
@@ -255,7 +252,6 @@ export default function ContactsManagerScreen() {
             tag: data.relationship as RelationshipTag,
             isPrimary: data.is_emergency_contact,
             status: data.opted_in ? "active" : "disabled",
-            avatar: "https://via.placeholder.com/150",
           },
         ]);
       }
@@ -320,13 +316,9 @@ export default function ContactsManagerScreen() {
             </button>
             <div
               onClick={() => navigate("/settings")}
-              className="w-8 h-8 rounded-full overflow-hidden border border-[#e2bfb5] bg-[#ffe9e4] cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center rounded-full overflow-hidden border border-[#e2bfb5] bg-[#ffe9e4] text-[#ac2d00] font-bold text-sm cursor-pointer"
             >
-              <img
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDE-qaqUbues0QP3_CpX_doFGBr6379MEUheKjEltx7apQeEfjMGA4A659vVa0qosViwGjnSWODIVfZlIeq7GPxHSFlSRF4h0xOLw-P7zS211mDZoMLAUd-ACqOWTY9ijw7CzNnMGpwAU3y0mM8pl_eJMLX5LMkVCYJ2R8SqdRB639BiS3MvE8hb6-luGjfGTlYgE34Kh3K3I1YW6AyXIFOJvwd5yfjCLwS2mTlshMNLRUaUu0Ey4wUy7QLlfmpR9v54J7VUpqXZsc"
-                alt="Profile"
-              />
+              {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
             </div>
           </div>
         </header>
@@ -363,8 +355,8 @@ export default function ContactsManagerScreen() {
                         className="bg-[#fff8f6] border border-[#e2bfb5] rounded-lg p-3 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-full overflow-hidden bg-[#fde2dc] flex-shrink-0">
-                            <img className="w-full h-full object-cover" src={contact.avatar} alt={`${contact.firstName} ${contact.lastName}`} />
+                          <div className="w-12 h-12 rounded-full bg-[#fde2dc] flex items-center justify-center flex-shrink-0">
+                            <span className="text-[#ac2d00] font-bold text-xl">{contact.firstName.charAt(0).toUpperCase()}</span>
                           </div>
                           <div>
                             <p className="font-bold text-[18px] text-[#261814]">
@@ -504,8 +496,8 @@ export default function ContactsManagerScreen() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex gap-4">
-                      <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-[#fde2dc] group-hover:ring-[#ac2d00]/20 transition-all flex-shrink-0">
-                        <img className="w-full h-full object-cover" src={contact.avatar} alt={`${contact.firstName} ${contact.lastName}`} />
+                      <div className="w-14 h-14 rounded-full bg-[#fde2dc] flex items-center justify-center ring-2 ring-[#fde2dc] group-hover:ring-[#ac2d00]/20 transition-all flex-shrink-0">
+                        <span className="text-[#ac2d00] font-bold text-2xl">{contact.firstName.charAt(0).toUpperCase()}</span>
                       </div>
                       <div>
                         <h3 className="text-[18px] font-semibold text-[#261814]">{contact.firstName} {contact.lastName}</h3>

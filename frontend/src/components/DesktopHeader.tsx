@@ -19,7 +19,7 @@ export default function DesktopHeader({
 }: DesktopHeaderProps) {
   const navigate = useNavigate();
   const profile = useAuthStore((state) => state.profile);
-  const avatarUrl = profile?.avatar_url || "https://via.placeholder.com/150";
+  const avatarInitial = profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : "U";
 
   const [activeAlertsCount, setActiveAlertsCount] = useState(0);
   const [isTriggeringSOS, setIsTriggeringSOS] = useState(false);
@@ -132,12 +132,8 @@ export default function DesktopHeader({
               </span>
             )}
           </button>
-          <div className="h-8 w-8 rounded-full overflow-hidden border border-[#e2bfb5]">
-            <img 
-              className="w-full h-full object-cover" 
-              src={avatarUrl} 
-              alt="Profile" 
-            />
+          <div className="h-8 w-8 flex items-center justify-center rounded-full overflow-hidden border border-[#e2bfb5] bg-[#ffe9e4] text-[#ac2d00] font-bold text-sm">
+            {avatarInitial}
           </div>
         </div>
         

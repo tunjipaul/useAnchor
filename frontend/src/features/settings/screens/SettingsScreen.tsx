@@ -129,12 +129,8 @@ export default function SettingsScreen() {
             <button className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-[#e2bfb5] text-[#5a413a] hover:bg-[#ffe9e4] hover:text-[#ac2d00] transition-colors">
               <Bell size={18} />
             </button>
-            <div className="w-8 h-8 rounded-full overflow-hidden bg-[#ffe9e4] border border-[#e2bfb5]">
-              <img
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlI-aQ9h3y8rnX6D3ph-Y3aO9savvWnHcTRg3MLNXZp4CsQGsYrGNq3xVrmh4OYH3sSK5XahtBA3ZZBkWUqaQvLWboRpI8scrAqW5ZCF1vS_5uDwCr1PAF4fkiIeB1yBOQ6Jw44RciioenkrhLx9Ib_tq08LyDrqwkWMP1yJgYJplYdR9qF4NvR6iqKTgO_Qf191ja2A4rJ-Iytnp282joLPNoKimdoauaAR65M2e1UlMeHSZ35tr5iZZNDPG5R8QXVJ9f-gEO6SU"
-                alt="Profile"
-              />
+            <div className="w-8 h-8 flex items-center justify-center rounded-full overflow-hidden bg-[#ffe9e4] border border-[#e2bfb5] text-[#ac2d00] font-bold text-sm">
+              {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : "U"}
             </div>
           </div>
         </header>
