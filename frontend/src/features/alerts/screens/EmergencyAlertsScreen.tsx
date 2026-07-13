@@ -2,16 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Search, Bell, Siren, CheckCircle, 
-  TimerOff, ZoomIn, LocateFixed, ArrowRight, Loader2
+  TimerOff, ZoomIn, LocateFixed, ArrowRight, Loader2, MapPin
 } from "lucide-react";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
 import MobileBottomNav from "../../../components/MobileBottomNav";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
 
 import type { AlertData } from "../utils/alertStore";
 
 export default function EmergencyAlertsScreen() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -191,8 +193,9 @@ export default function EmergencyAlertsScreen() {
               {/* Right Panel: Selected Preview (Map Placeholder) */}
               <div className="flex-1 flex flex-col bg-white border border-[#e2bfb5] rounded-xl overflow-hidden shadow-sm">
                 <div className="relative h-[240px] w-full bg-[#ffe9e4] overflow-hidden shrink-0 border-b border-[#e2bfb5]">
-                   {/* Fake map image for MVP */}
-                   <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZohXEkMQFnuhiASGnBb1UE0kmkhzsBcFKtJfBqkItujKpz-cWnBFv4eRnQPMoyCuFOuaY4CXJTAPUrFRNJHkpYlmUi8TOmPvBGoTBthDHjiWsXdizmN2cehSUFu5pkBK5GbyD6CNHAXxSBQme00wbgWwyKP6iHCvMswIU3kVZwhJf-aHc-Vwz8NyjYAfNkt7GRYChYQmVsVVSIAPfoToQUEbdUlFCod_WBp7YyAiaaDVEZE4XAFGi-bmwsm0IoPke65Ab_oChrTQ" alt="Map" className="w-full h-full object-cover" />
+                   <div className="w-full h-full bg-[#fde2dc] flex items-center justify-center opacity-50">
+                     <MapPin size={48} className="text-[#ac2d00]" />
+                   </div>
                    
                    <div className="absolute top-4 right-4 flex flex-col gap-2">
                       <button className="h-10 w-10 bg-white rounded shadow-md flex items-center justify-center text-[#5a413a] hover:text-[#ac2d00]">
@@ -225,8 +228,8 @@ export default function EmergencyAlertsScreen() {
             <button className="p-2 text-[#5a413a]">
               <Bell size={24} />
             </button>
-            <div className="h-8 w-8 rounded-full overflow-hidden bg-[#e2bfb5]">
-               <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCACrZsabx0tdl3Xvc-hqAw589uk60sGf6ht8XGXxrrRXYJDT8JGwRh-SJZDkwxCIeqMoWWcaqe_FJM7wJ3WD5Ft2iW7NTHye2yRW1PGnXv3PUV0RMSE43tzE9Iy8lFcs5uJ6pAgZ-O0mRj-zYAjBk3cAot4ND-DRZgc6HFAjsCixASmBMN4iRIMAVsYFr-BxRVJnBaYEfIVzlRNNoWSQU41AUNJOB7G-d-JEcDKQjMVW6hHnAlM19C22A1pLinsZ_dR2XzVN5rDas" alt="Profile" className="w-full h-full object-cover" />
+            <div className="h-8 w-8 flex items-center justify-center rounded-full overflow-hidden border border-[#e2bfb5] bg-[#ffe9e4] text-[#ac2d00] font-bold text-sm">
+               {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
             </div>
           </div>
         </header>

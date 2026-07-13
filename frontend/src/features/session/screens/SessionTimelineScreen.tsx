@@ -3,10 +3,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, MapPin, CheckCircle, AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore } from "../../auth/stores/useAuthStore";
 
 export default function SessionTimelineScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const profile = useAuthStore((state) => state.profile);
   const [session, setSession] = useState<any | null>(null);
   const [checkins, setCheckins] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -163,8 +165,8 @@ export default function SessionTimelineScreen() {
           </button>
           <h1 className="text-[20px] font-bold text-[#ac2d00] tracking-tight truncate max-w-[200px]">{session.title}</h1>
         </div>
-        <div className="w-8 h-8 rounded-full bg-[#f7ddd6] overflow-hidden border border-[#e2bfb5]">
-          <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsoYbLxssscp2WsGDv2d8ZlfFL0iLtG_60UqAK-n2TYPJsxQ2He3K-bhykg_jps0c9lci5cTHVWhQyctt0xwq9q5mrBW4KzQSmuAPzhgJPDfDuOG6HdTHmHxVh_PoPNNi6YpcvoRoEBLBXZ3Szq4tSKZMXILjZajlBDDeIi3l8JtRhl73pmvc3kMu-wFC6BhZWvS-2PuIPfxonqL5RgYQgknos6twmkmI67XfKBca2vdGB2xoHyIu9nSerP0IoRbBqQmU-5wtRGoE" alt="Profile" />
+        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-[#f7ddd6] overflow-hidden border border-[#e2bfb5] text-[#ac2d00] font-bold text-sm">
+          {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : "U"}
         </div>
       </header>
 
@@ -176,9 +178,21 @@ export default function SessionTimelineScreen() {
               <p className="text-[10px] font-bold text-[#5a413a] uppercase tracking-widest mb-1">Session with</p>
               <h2 className="text-[18px] font-semibold">{session.title || 'No title specified'}</h2>
             </div>
-            <span className="bg-[#ECFDF5] text-[#065F46] text-[10px] px-2 py-1 rounded-full uppercase font-bold border border-[#A7F3D0]">
-              Ended Safely
-            </span>
+            {session.status === 'ended' && (
+              <span className="bg-[#ECFDF5] text-[#065F46] text-[10px] px-2 py-1 rounded-full uppercase font-bold border border-[#A7F3D0]">
+                Ended Safely
+              </span>
+            )}
+            {session.status === 'active' && (
+              <span className="bg-[#E0F2FE] text-[#0369A1] text-[10px] px-2 py-1 rounded-full uppercase font-bold border border-[#BAE6FD]">
+                Active
+              </span>
+            )}
+            {(session.status === 'sos' || session.status === 'emergency') && (
+              <span className="bg-[#FFE4E6] text-[#E11D48] text-[10px] px-2 py-1 rounded-full uppercase font-bold border border-[#FECDD3] animate-pulse">
+                SOS Active
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-[#e2bfb5]">
             <div>

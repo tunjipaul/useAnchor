@@ -83,8 +83,8 @@ export default function AlertLandingScreen() {
         {/* Urgent Header */}
         <div className={`p-5 rounded-2xl mb-6 shadow-sm ${isResolved ? "bg-[#fff1ed] border border-[#e2bfb5]" : "bg-[#ba1a1a] text-white"}`}>
           <div className="flex items-start gap-4">
-            <div className={`w-14 h-14 rounded-full overflow-hidden shrink-0 border-2 ${isResolved ? "border-[#ac2d00]" : "border-[#ffdad6]"}`}>
-              <img src={alertData.profile?.avatar_url || "https://via.placeholder.com/150"} alt="Avatar" className="w-full h-full object-cover" />
+            <div className={`w-14 h-14 flex items-center justify-center rounded-full overflow-hidden shrink-0 border-2 bg-white text-[#ac2d00] font-bold text-2xl ${isResolved ? "border-[#ac2d00]" : "border-[#ffdad6]"}`}>
+              {alertData.profile?.full_name ? alertData.profile.full_name.charAt(0).toUpperCase() : "U"}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">

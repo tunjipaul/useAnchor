@@ -150,12 +150,8 @@ export default function LiveLocationScreen() {
             <ArrowLeft size={20} />
           </button>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#ac2d00]">
-              <img
-                src={alertData.profile?.avatar_url || "https://via.placeholder.com/150"}
-                alt={alertData.profile?.full_name || "User avatar"}
-                className="w-full h-full object-cover"
-              />
+            <div className="w-10 h-10 flex items-center justify-center rounded-full overflow-hidden border-2 border-[#ac2d00] bg-[#fde2dc] text-[#ac2d00] font-bold text-lg">
+              {alertData.profile?.full_name ? alertData.profile.full_name.charAt(0).toUpperCase() : "U"}
             </div>
             <div>
               <h2 className="text-[15px] font-bold leading-tight">{alertData.profile?.full_name || "Unknown User"}</h2>

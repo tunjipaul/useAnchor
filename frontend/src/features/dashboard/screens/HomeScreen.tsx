@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   XCircle,
   Loader2,
+  Navigation,
 } from "lucide-react";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import DesktopHeader from "../../../components/DesktopHeader";
@@ -590,11 +591,9 @@ export default function HomeScreen() {
                     {/* Highlight Card 1 */}
                     <div className="group relative overflow-hidden rounded-xl border border-[#e2bfb5] hover:border-[#ac2d00] transition-all cursor-pointer">
                       <div className="h-28 w-full relative overflow-hidden bg-gray-100">
-                        <img
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          alt="Well lit route map"
-                          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhsH5tSZNgsncF4ggmwNy_lYMVpZ33nO8V5t34hwilbKYE36yW430-nbvzGrjdoK7ha_lOP0iuK4DlY2oVQEYMevhWemIfELLHOI2ohY20S_C5rkCmfUnq-otZFxRq6Gjexv-f_aqDYkPh7MkDCcXyOOxFKN8UWOTGAg8bd3R3QXsG26n9lZ-zPt6GeWrbBSG7J3yJvybY1FjZ59lRskVNkIfRxR0oH_ADbDPB9SgZ05PoGnrDn75S9GGAyH7o_8jTj2Sbq1TvCwA"
-                        />
+                        <div className="w-full h-full bg-[#fde2dc] flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
+                          <Navigation size={48} className="text-[#ac2d00] mb-4 opacity-70" />
+                        </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-2 left-3 text-white font-bold text-[14px]">
                           Well-Lit Routes
@@ -611,11 +610,9 @@ export default function HomeScreen() {
                     {/* Highlight Card 2 */}
                     <div className="group relative overflow-hidden rounded-xl border border-[#e2bfb5] hover:border-[#ac2d00] transition-all cursor-pointer">
                       <div className="h-28 w-full relative overflow-hidden bg-gray-100">
-                        <img
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          alt="Live location telemetry"
-                          src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_RDogdWc-WEE9qP2w1jrN0Hh_wHNd5berm36Fa8y-QKo-A11PLEVGR9IzmLbGlB5hH7C7Lxs8Chut65gpwc4C4TjpUn1Di-QIZC_B1_zX1iCmFrpokSknzFehYxHJhAvlr0byy2GJJVTIxDhEPy84hEpbKCi5gxumjOgtvVw4NWwWEd_lFsxHXBO61MfwU4cQofAkLOaT5s3b3cE9XBcZ5d6NLwuwfTxERZYx7s_2leb9h7cI72TMWzgs7Dn-9aAR-Ip_pNIF5Is"
-                        />
+                        <div className="w-full h-full bg-[#fde2dc] flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
+                          <MapPin size={48} className="text-[#ac2d00] mb-4 opacity-70" />
+                        </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-2 left-3 text-white font-bold text-[14px]">
                           Live Tracking

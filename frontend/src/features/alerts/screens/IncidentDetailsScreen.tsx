@@ -92,7 +92,7 @@ export default function IncidentDetailsScreen() {
             id: data.id,
             userId: data.user_id,
             userName: "Unknown User",
-            userAvatar: "https://via.placeholder.com/150",
+            userAvatar: "", // Will use initial fallback
             userPhone: "",
             triggeredAt: data.triggered_at,
             triggerReason: "SOS Triggered",
@@ -242,8 +242,8 @@ export default function IncidentDetailsScreen() {
           {/* Incident Summary */}
           <div className="p-4 bg-white border border-[#e2bfb5] rounded-xl shadow-sm">
              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#ac2d00]">
-                   <img src={alert.userAvatar} alt={alert.userName} className="w-full h-full object-cover" />
+                <div className="w-14 h-14 flex items-center justify-center rounded-full overflow-hidden border-2 border-[#ffdad6] bg-[#ffe9e4] text-[#ba1a1a] font-bold text-2xl shrink-0">
+                  {alert.userName ? alert.userName.charAt(0).toUpperCase() : "U"}
                 </div>
                 <div className="flex-1">
                    <h3 className="text-[18px] font-semibold text-[#261814]">{alert.userName}</h3>
@@ -415,8 +415,8 @@ export default function IncidentDetailsScreen() {
                <button className="p-2 hover:bg-[#fff1ed] rounded-full transition-colors active:scale-95 text-[#5a413a]">
                  <Bell size={24} />
                </button>
-               <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-[#e2bfb5]">
-                 <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtpiyVCgnlpOZMDnzTyZCqvqg_rks5zttWI7DbjxsWUZDOSjxdc1JOLwZzRuDtigRqGcWBxGnrLtTAoP11cBS0dQoaWcdBOYDwOVELzdL3CA8slyTiU6209lX5ESzoxFiNYtK6a4ICJgq8YqEyp4gcYSx-evzhYYUTzEltP0SJT234UI4esUNUvHQdwlFCfh_mI0-aqvQcTQo_rs_sDrkU0_VMwh5NUPvMKAY-GmTI5g0fEm0GT45kb9JazMnk76sR0N9WCm_V0RI" alt="You" className="w-full h-full object-cover" />
+               <div className="h-10 w-10 flex items-center justify-center rounded-full overflow-hidden border-2 border-[#e2bfb5] bg-[#ffe9e4] text-[#ac2d00] font-bold text-lg">
+                 {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
                </div>
              </div>
            </header>

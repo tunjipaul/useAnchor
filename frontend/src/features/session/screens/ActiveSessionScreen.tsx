@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -48,46 +48,6 @@ export default function ActiveSessionScreen() {
   const [showExtendPrompt, setShowExtendPrompt] = useState(false);
   const [gracePeriodSeconds, setGracePeriodSeconds] = useState(1 * 60);
 
-  // SOS press-and-hold state
-  const SOS_HOLD_MS = 2000;
-  const [sosHoldProgress, setSosHoldProgress] = useState(0);
-  const [isSosHolding, setIsSosHolding] = useState(false);
-  const sosTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sosStartRef = useRef<number>(0);
-
-  const clearSosHold = useCallback(() => {
-    if (sosTimerRef.current) {
-      clearInterval(sosTimerRef.current);
-      sosTimerRef.current = null;
-    }
-    setIsSosHolding(false);
-    setSosHoldProgress(0);
-    sosStartRef.current = 0;
-  }, []);
-
-  const startSosHold = useCallback(() => {
-    if (isLoading) return;
-    setIsSosHolding(true);
-    sosStartRef.current = Date.now();
-    sosTimerRef.current = setInterval(() => {
-      const elapsed = Date.now() - sosStartRef.current;
-      const pct = Math.min(elapsed / SOS_HOLD_MS, 1);
-      setSosHoldProgress(pct);
-      if (pct >= 1) {
-        clearSosHold();
-        // Haptic feedback if supported
-        if (typeof navigator.vibrate === "function") {
-          navigator.vibrate(200);
-        }
-        handleTriggerSOS('SOS Button');
-      }
-    }, 30);
-  }, [isLoading]);
-
-  // Cleanup SOS timer on unmount
-  useEffect(() => {
-    return () => { clearSosHold(); };
-  }, [clearSosHold]);
 
   // Load session details from Supabase
   const loadActiveSession = async () => {
@@ -540,57 +500,28 @@ export default function ActiveSessionScreen() {
             <span>I'm Safe</span>
           </button>
 
-          {/* SOS Button — 2-second press-and-hold */}
+          {/* SOS Button — Single Tap */}
           <div className="flex flex-col items-center pt-2 gap-2">
             <div className="relative w-28 h-28 flex items-center justify-center">
-              {/* Pulsing glow when holding */}
-              {isSosHolding && (
-                <motion.div
-                  animate={{ scale: [1, 1.3, 1], opacity: [0.25, 0.05, 0.25] }}
-                  transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
-                  className="absolute inset-0 rounded-full bg-[#ba1a1a]/30"
-                />
-              )}
-              {/* Progress ring (SVG) */}
-              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 112 112">
-                <circle
-                  cx="56" cy="56" r="48"
-                  fill="none"
-                  stroke="#e2bfb5"
-                  strokeWidth="6"
-                  opacity="0.3"
-                />
-                <circle
-                  cx="56" cy="56" r="48"
-                  fill="none"
-                  stroke={sosHoldProgress > 0.7 ? "#ba1a1a" : "#fff8f6"}
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 48}`}
-                  strokeDashoffset={`${2 * Math.PI * 48 * (1 - sosHoldProgress)}`}
-                  style={{ transition: "stroke-dashoffset 30ms linear, stroke 200ms ease" }}
-                />
-              </svg>
               {/* Core SOS button */}
               <button
-                onPointerDown={startSosHold}
-                onPointerUp={clearSosHold}
-                onPointerLeave={clearSosHold}
-                onContextMenu={(e) => e.preventDefault()}
-                className={`relative z-10 w-24 h-24 rounded-full shadow-xl flex flex-col items-center justify-center gap-0.5 transition-transform select-none touch-none ${
-                  isSosHolding
-                    ? "bg-[#ba1a1a] scale-95"
-                    : "bg-[#ac2d00] hover:bg-[#902400] hover:scale-105"
-                } text-white`}
+                onClick={() => {
+                  if (typeof navigator.vibrate === "function") {
+                    navigator.vibrate(200);
+                  }
+                  handleTriggerSOS('SOS Button');
+                }}
+                disabled={isLoading}
+                className="relative z-10 w-24 h-24 rounded-full shadow-xl flex flex-col items-center justify-center gap-0.5 transition-transform select-none touch-none bg-[#ba1a1a] hover:bg-[#900000] hover:scale-105 active:scale-95 text-white disabled:opacity-50"
               >
-                <Siren size={32} className={isSosHolding ? "" : "animate-bounce"} />
+                <Siren size={32} className="animate-bounce" />
                 <span className="text-[11px] font-extrabold uppercase tracking-wider">
-                  {isSosHolding ? "HOLD..." : "SOS"}
+                  SOS
                 </span>
               </button>
             </div>
-            <span className="text-[10px] text-[#5a413a] font-semibold">
-              Hold for 2 seconds to trigger
+            <span className="text-[10px] text-[#ba1a1a] font-bold">
+              Tap to trigger instantly
             </span>
           </div>
         </footer>
