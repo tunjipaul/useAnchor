@@ -8,6 +8,7 @@ import DesktopSidebar from "../../../components/DesktopSidebar";
 import DesktopHeader from "../../../components/DesktopHeader";
 import MobileBottomNav from "../../../components/MobileBottomNav";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
+import { apiFetch } from "../../../lib/api";
 
 import type { AlertData } from "../utils/alertStore";
 
@@ -20,22 +21,29 @@ export default function EmergencyAlertsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const loadAlerts = async () => {
-    setIsLoading(true);
+  const loadAlerts = async (isPolling = false) => {
+    if (!isPolling) setIsLoading(true);
     setErrorMsg(null);
     try {
-      // Mock for MVP: No alerts endpoint yet
-      setAlerts([]);
+      const data = await apiFetch<AlertData[]>('/alerts');
+      setAlerts(data);
     } catch (e: any) {
       console.error("Error loading alerts:", e);
-      setErrorMsg("Unable to load emergency alerts. Please check your connection and try again.");
+      if (!isPolling) setErrorMsg("Unable to load emergency alerts. Please check your connection and try again.");
     } finally {
-      setIsLoading(false);
+      if (!isPolling) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadAlerts();
+    
+    // Poll for new alerts every 10 seconds
+    const interval = setInterval(() => {
+      loadAlerts(true);
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredAlerts = alerts.filter(alert => {
@@ -157,13 +165,11 @@ export default function EmergencyAlertsScreen() {
                               {!isResolved && isSOS && (
                                 <div className="absolute inset-0 bg-[#ac2d00]/20 rounded-full animate-ping"></div>
                               )}
-                              <img 
-                                src={alert.userAvatar} 
-                                alt={alert.userName} 
-                                className={`w-full h-full rounded-full object-cover relative z-10 ${
+                              <div className={`w-full h-full rounded-full flex items-center justify-center bg-[#ffe9e4] text-[#ac2d00] font-bold text-lg relative z-10 ${
                                   !isResolved && isSOS ? "border-2 border-[#ac2d00]" : "border border-[#e2bfb5]"
-                                }`} 
-                              />
+                                }`}>
+                                {alert.userName ? alert.userName.charAt(0).toUpperCase() : "U"}
+                              </div>
                             </div>
                             <div>
                               <h3 className="text-[18px] font-semibold text-[#261814] leading-tight">{alert.userName}</h3>
@@ -310,7 +316,11 @@ export default function EmergencyAlertsScreen() {
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex gap-3 items-center">
-                        <img src={alert.userAvatar} alt={alert.userName} className="w-10 h-10 rounded-full object-cover border border-[#e2bfb5]" />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-[#ffe9e4] text-[#ac2d00] font-bold text-base ${
+                            !isResolved && isSOS ? "border-2 border-[#ac2d00]" : "border border-[#e2bfb5]"
+                          }`}>
+                          {alert.userName ? alert.userName.charAt(0).toUpperCase() : "U"}
+                        </div>
                         <div>
                           <h3 className="text-[16px] font-semibold text-[#261814]">{alert.userName}</h3>
                           <span className="text-[12px] text-[#5a413a]">

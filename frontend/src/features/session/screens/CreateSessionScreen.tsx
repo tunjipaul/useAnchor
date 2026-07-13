@@ -20,6 +20,7 @@ import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { useSession } from "../hooks/useSession";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
+import LocationSearchInput from "../../../components/LocationSearchInput";
 
 interface Contact {
   id: string;
@@ -345,21 +346,16 @@ export default function CreateSessionScreen() {
                     </h2>
                     
                     {/* Location Input */}
-                    <div className="relative flex flex-col gap-1.5">
-                      <div className="relative">
-                        <MapPin
-                          size={20}
-                          className="absolute left-4 top-1/2 -translate-y-1/2 text-[#ac2d00]"
-                        />
-                        <input
-                          className="w-full h-12 pl-12 pr-4 bg-white border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] rounded-lg text-[16px] outline-none transition-all"
-                          placeholder="Set meeting location"
-                          type="text"
-                          value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                        />
-                      </div>
-                    </div>
+                    <LocationSearchInput
+                      value={location}
+                      onChange={setLocation}
+                      onSelectLocation={(name, newLat, newLng) => {
+                        setLocation(name);
+                        setLat(newLat);
+                        setLng(newLng);
+                      }}
+                      placeholder="Set meeting location"
+                    />
 
                     {/* Date & Time Picker */}
                     <div className="grid grid-cols-2 gap-4">
