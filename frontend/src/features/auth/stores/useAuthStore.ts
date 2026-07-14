@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { apiFetch } from "../../../lib/api";
+import toast from "react-hot-toast";
 
 export interface Profile {
   id: number | string;
@@ -60,11 +61,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
       
       if (response.test_otp) {
-        import("react-hot-toast").then(({ default: toast }) => {
-          toast.success(`Test OTP Code: ${response.test_otp}`, { 
-            duration: 10000,
-            icon: '💬'
-          });
+        toast.success(`Test OTP Code: ${response.test_otp}`, { 
+          duration: 10000,
+          icon: '💬'
         });
       }
       return { error: null };

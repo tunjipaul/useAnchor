@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, User, Camera, ShieldCheck, Loader2 } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { getFriendlyErrorMessage } from "../../../lib/errorHelpers";
+import { apiFetch } from "../../../lib/api";
 
 export default function ProfileSetupScreen() {
   const navigate = useNavigate();
@@ -51,7 +52,6 @@ export default function ProfileSetupScreen() {
         formData.append("file", photoFile);
         
         // Use apiFetch directly for the upload
-        const { apiFetch } = await import("../../../lib/api");
         const res = await apiFetch<{ avatar_url: string }>("/profiles/avatar", {
           method: "POST",
           body: formData,
