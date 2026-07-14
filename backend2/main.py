@@ -5,15 +5,37 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import datetime
 import jwt
 import database, models, schemas
+import os
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 # Initialize DB
 models.Base.metadata.create_all(bind=database.engine)
 
-import os
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-
 load_dotenv()
+
+# Initialize Firebase Admin
+try:
+    if not firebase_admin._apps:
+        cred = credentials.Certificate({
+            "type": "service_account",
+            "project_id": os.getenv("FIREBASE_PROJECT_ID"),
+            "private_key_id": "",
+            "private_key": os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n"),
+            "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
+            "client_id": "",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{os.getenv('FIREBASE_CLIENT_EMAIL', '').replace('@', '%40')}"
+        })
+        firebase_admin.initialize_app(cred)
+        print("Firebase Admin initialized successfully")
+except Exception as e:
+    print(f"Failed to initialize Firebase Admin: {e}")
+
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="useAnchor MVP Backend", version="2.0.0")
 
@@ -59,11 +81,61 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 # --- Background Workers ---
 def alert_notification_worker(alert_id: int, db: Session):
     """
-    This replaces supabase.functions.invoke('alert-notification-worker').
-    In a real app, it would send FCM pushes to contacts.
+    Sends FCM pushes to trusted contacts for a given alert.
     """
     print(f"[{datetime.datetime.utcnow()}] (Worker) Dispatching notifications for alert {alert_id}...")
-    # Logic to fetch trusted contacts and send pushes would go here.
+    
+    # 1. Get the alert and session
+    alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
+    if not alert:
+        print("Alert not found.")
+        return
+        
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == alert.session_id).first()
+    if not session:
+        print("Session not found.")
+        return
+        
+    user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first()
+    user_name = user.full_name or user.phone if user else "A useAnchor user"
+
+    # 2. Get trusted contacts for this user
+    contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
+    
+    # 3. Find contacts who are also users and have an FCM token
+    contact_phones = [c.phone_number for c in contacts]
+    contact_profiles = db.query(models.Profile).filter(
+        models.Profile.phone.in_(contact_phones),
+        models.Profile.fcm_token.isnot(None)
+    ).all()
+    
+    tokens = [p.fcm_token for p in contact_profiles]
+    
+    if not tokens:
+        print(f"No FCM tokens found for contacts of user {session.user_id}")
+        return
+        
+    # 4. Send the push
+    reason = "triggered an SOS!" if alert.trigger_type == "manual_sos" else "missed their safety check-in!"
+    
+    message = messaging.MulticastMessage(
+        notification=messaging.Notification(
+            title=f"🚨 Emergency Alert from {user_name}",
+            body=f"{user_name} has {reason} Open useAnchor to view their location.",
+        ),
+        data={
+            "alertId": str(alert_id),
+            "sessionId": str(session.id),
+            "type": "emergency_alert"
+        },
+        tokens=tokens,
+    )
+    
+    try:
+        response = messaging.send_each_for_multicast(message)
+        print(f"Successfully sent {response.success_count} messages; {response.failure_count} failed.")
+    except Exception as e:
+        print(f"Error sending FCM multicast: {e}")
 
 def check_dead_man_switch():
     print(f"[{datetime.datetime.utcnow()}] Running dead-man switch check...")
