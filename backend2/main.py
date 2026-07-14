@@ -5,6 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import datetime
 import jwt
 import random
+import logging
 import database, models, schemas
 import os
 import firebase_admin
@@ -49,7 +50,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="useAnchor MVP Backend", version="2.0.0")
 
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+logger = logging.getLogger("useanchor")
+logging.basicConfig(level=logging.INFO)
+
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://use-anchor.vercel.app"
+]
+
+env_origins = os.getenv("ALLOWED_ORIGINS")
+if env_origins:
+    allowed_origins.extend(env_origins.split(","))
 
 app.add_middleware(
     CORSMiddleware,
@@ -204,6 +216,8 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def startup_event():
+    logger.info("CORS allowed origins: %s", allowed_origins)
+    logger.info("Database URL prefix: %s", os.getenv("DATABASE_URL", "sqlite:///./useanchor.db")[:30])
     scheduler.add_job(check_dead_man_switch, 'interval', minutes=1, next_run_time=datetime.datetime.utcnow())
     scheduler.start()
 
@@ -215,50 +229,71 @@ def shutdown_event():
 # ==========================================
 # 1. Authentication
 # ==========================================
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "allowed_origins": allowed_origins}
+
 @app.post("/api/auth/send-otp")
 def send_otp(request: schemas.OTPRequest, db: Session = Depends(database.get_db)):
-    # 1. Check if user exists, if not, create them early to store the OTP
-    user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
-    if not user:
-        user = models.Profile(phone=request.phone)
-        db.add(user)
+    try:
+        logger.info("send-otp request for phone=%s", request.phone)
+
+        user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
+        if not user:
+            user = models.Profile(phone=request.phone)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        otp = str(random.randint(100000, 999999))
+
+        user.otp_code = otp
+        user.otp_expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
         db.commit()
-        db.refresh(user)
-        
-    # 2. Generate OTP
-    otp = str(random.randint(100000, 999999))
-    
-    # 3. Save to profile
-    user.otp_code = otp
-    user.otp_expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
-    db.commit()
-    
-    # 4. Return OTP directly in response for MVP testing
-    print(f"Generated OTP {otp} for {request.phone}")
-    return {"message": f"OTP sent to {request.phone}", "test_otp": otp}
+
+        logger.info("Generated OTP for %s (returned in response for MVP demo)", request.phone)
+        return {"message": f"OTP sent to {request.phone}", "test_otp": otp}
+    except Exception as e:
+        logger.exception("send-otp failed for phone=%s: %s", request.phone, e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send OTP: {type(e).__name__}: {e}",
+        )
 
 @app.post("/api/auth/verify-otp", response_model=schemas.TokenResponse)
 def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(database.get_db)):
-    user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found. Please request a new OTP.")
-        
-    if not user.otp_code or user.otp_code != request.token:
-        # Fallback to 123456 strictly for old frontend code that might not handle the test_otp yet
-        if request.token != "123456":
-            raise HTTPException(status_code=400, detail="Invalid OTP code.")
-            
-    if user.otp_expires_at and datetime.datetime.utcnow() > user.otp_expires_at:
-        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
-        
-    # Clear OTP after successful use
-    user.otp_code = None
-    user.otp_expires_at = None
-    db.commit()
-        
-    access_token = create_access_token(data={"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer"}
+    try:
+        logger.info("verify-otp request for phone=%s", request.phone)
+
+        user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found. Please request a new OTP.")
+
+        if not user.otp_code or user.otp_code != request.token:
+            if request.token != "123456":
+                raise HTTPException(status_code=400, detail="Invalid OTP code.")
+
+        if user.otp_expires_at and datetime.datetime.utcnow() > user.otp_expires_at:
+            raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+
+        user.otp_code = None
+        user.otp_expires_at = None
+        db.commit()
+
+        access_token = create_access_token(data={"sub": str(user.id)})
+        logger.info("verify-otp success for phone=%s user_id=%s", request.phone, user.id)
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("verify-otp failed for phone=%s: %s", request.phone, e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to verify OTP: {type(e).__name__}: {e}",
+        )
 
 @app.post("/api/auth/logout")
 def logout(current_user: models.Profile = Depends(get_current_user)):

@@ -7,8 +7,15 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Fallback to local SQLite if DATABASE_URL is not set
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./useanchor.db")
+# Local dev: force SQLite even if DATABASE_URL is set in .env (e.g. pointing to Neon).
+# Set USE_SQLITE=false (or unset it) in production to use DATABASE_URL instead.
+USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
+
+SQLALCHEMY_DATABASE_URL = (
+    "sqlite:///./useanchor.db"
+    if USE_SQLITE
+    else os.getenv("DATABASE_URL", "sqlite:///./useanchor.db")
+)
 
 # If it's SQLite, we need connect_args={"check_same_thread": False}. 
 # For PostgreSQL (Neon), we do not.

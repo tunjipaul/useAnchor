@@ -30,7 +30,7 @@ export default function ActiveSessionScreen() {
   const getCachedLocation = useLocationStore((s) => s.getLocation);
 
   const [session, setSession] = useState<any | null>(null);
-  const [timeLeft, setTimeLeft] = useState(30 * 60);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [_errorMsg, setErrorMsg] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);

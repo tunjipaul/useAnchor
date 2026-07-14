@@ -229,6 +229,15 @@ export default function CreateSessionScreen() {
     try {
       const selectedContactIds = contacts.filter((c) => c.selected).map((c) => c.id);
       
+      // Calculate start date. If the user didn't explicitly pick a future time, 
+      // use 'now' to ensure the full duration starts from the moment of activation.
+      const selectedDateTime = new Date(`${date}T${time}:00`);
+      const now = new Date();
+      
+      // We use a small 10-second buffer to handle the time it takes to click through.
+      const isFuture = selectedDateTime.getTime() > now.getTime() + 10000;
+      const startDate = isFuture ? selectedDateTime : undefined;
+
       const sessionId = await createAndStartSession(
         {
           title,
@@ -239,7 +248,7 @@ export default function CreateSessionScreen() {
           destination_lng: lng || undefined,
           durationMinutes,
           notes: notes || undefined,
-          startDate: new Date(`${date}T${time}:00`),
+          startDate,
         },
         selectedContactIds
       );
