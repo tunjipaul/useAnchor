@@ -332,10 +332,41 @@ def resolve_alert(alert_id: int, request: schemas.AlertResolveRequest, db: Sessi
     db.commit()
     return {"message": "Alert resolved"}
 
-@app.get("/api/alerts", response_model=list[schemas.AlertResponse])
+@app.get("/api/alerts")
 def get_alerts(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    # Very simplified view for MVP
-    return db.query(models.Alert).all()
+    # Get all user IDs where current_user is a trusted contact
+    trusted_relationships = db.query(models.TrustedContact).filter(models.TrustedContact.phone_number == current_user.phone).all()
+    trusted_user_ids = [rel.user_id for rel in trusted_relationships]
+    
+    # Also include the user's own alerts just in case
+    trusted_user_ids.append(current_user.id)
+    
+    # Get all alerts for sessions owned by those users
+    alerts = db.query(models.Alert).join(models.AnchorSession).filter(models.AnchorSession.user_id.in_(trusted_user_ids)).order_by(models.Alert.triggered_at.desc()).all()
+    
+    response = []
+    for alert in alerts:
+        session = db.query(models.AnchorSession).filter(models.AnchorSession.id == alert.session_id).first()
+        user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first() if session else None
+        
+        response.append({
+            "id": str(alert.id),
+            "userId": str(user.id) if user else "",
+            "userName": user.full_name if user and user.full_name else (user.phone if user else "Unknown"),
+            "userAvatar": user.avatar_url if user and user.avatar_url else "",
+            "triggeredAt": alert.triggered_at.isoformat() + "Z",
+            "triggerReason": "SOS Triggered" if alert.trigger_type == "manual_sos" else "Missed Check-In",
+            "sessionTitle": session.title if session else "Unknown Session",
+            "status": "resolved" if alert.resolved_at else "active",
+            "lastKnownLocation": {
+                "lat": alert.location_lat or 0.0,
+                "lng": alert.location_lng or 0.0,
+                "address": alert.location_address or "Unknown Location"
+            },
+            "resolvedAt": alert.resolved_at.isoformat() + "Z" if alert.resolved_at else None
+        })
+        
+    return response
 
 @app.get("/api/alerts/{alert_id}")
 def get_alert_details(alert_id: int, db: Session = Depends(database.get_db)):
