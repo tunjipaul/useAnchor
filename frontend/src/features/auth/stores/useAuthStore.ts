@@ -54,10 +54,19 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signInWithOtp: async (phone: string) => {
     try {
-      await apiFetch("/auth/send-otp", {
+      const response = await apiFetch<{ message: string, test_otp?: string }>("/auth/send-otp", {
         method: "POST",
         body: JSON.stringify({ phone }),
       });
+      
+      if (response.test_otp) {
+        import("react-hot-toast").then(({ default: toast }) => {
+          toast.success(`Test OTP Code: ${response.test_otp}`, { 
+            duration: 10000,
+            icon: '💬'
+          });
+        });
+      }
       return { error: null };
     } catch (error) {
       return { error };

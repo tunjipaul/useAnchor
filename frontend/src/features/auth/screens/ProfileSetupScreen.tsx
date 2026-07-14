@@ -12,6 +12,7 @@ export default function ProfileSetupScreen() {
 
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.avatar_url || null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,6 +28,7 @@ export default function ProfileSetupScreen() {
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
@@ -40,10 +42,34 @@ export default function ProfileSetupScreen() {
     setIsLoading(true);
     setErrorMsg(null);
 
+    let avatarUrlToSave = photoPreview;
+
+    // 1. Upload new photo if one was selected
+    if (photoFile) {
+      try {
+        const formData = new FormData();
+        formData.append("file", photoFile);
+        
+        // Use apiFetch directly for the upload
+        const { apiFetch } = await import("../../../lib/api");
+        const res = await apiFetch<{ avatar_url: string }>("/profiles/avatar", {
+          method: "POST",
+          body: formData,
+        });
+        avatarUrlToSave = res.avatar_url;
+      } catch (err: any) {
+        setIsLoading(false);
+        setErrorMsg(getFriendlyErrorMessage(err, "Failed to upload avatar. Please try again."));
+        return;
+      }
+    }
+
+    // 2. Update the rest of the profile
     const { error } = await updateProfile({
       full_name: fullName.trim(),
-      avatar_url: photoPreview,
+      avatar_url: avatarUrlToSave,
     });
+    
     setIsLoading(false);
 
     if (error) {

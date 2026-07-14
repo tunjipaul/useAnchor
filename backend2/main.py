@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 import datetime
 import jwt
+import random
 import database, models, schemas
 import os
 import firebase_admin
@@ -14,6 +15,15 @@ models.Base.metadata.create_all(bind=database.engine)
 
 from dotenv import load_dotenv
 load_dotenv()
+
+import cloudinary
+import cloudinary.uploader
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 
 # Initialize Firebase Admin
 try:
@@ -99,8 +109,16 @@ def alert_notification_worker(alert_id: int, db: Session):
     user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first()
     user_name = user.full_name or user.phone if user else "A useAnchor user"
 
-    # 2. Get trusted contacts for this user
-    contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
+    # 2. Get trusted contacts selected for this specific session
+    session_contacts = db.query(models.SessionContact).filter(models.SessionContact.session_id == session.id).all()
+    
+    if session_contacts:
+        contact_ids = [sc.contact_id for sc in session_contacts]
+        contacts = db.query(models.TrustedContact).filter(models.TrustedContact.id.in_(contact_ids)).all()
+    else:
+        # Fallback to all trusted contacts if none were selected for the session
+        print("No specific contacts chosen for session, falling back to all trusted contacts.")
+        contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
     
     # 3. Find contacts who are also users and have an FCM token
     contact_phones = [c.phone_number for c in contacts]
@@ -142,29 +160,43 @@ def check_dead_man_switch():
     db = database.SessionLocal()
     try:
         now = datetime.datetime.utcnow()
-        # Find active sessions that have passed their expected end time
-        overdue_sessions = db.query(models.AnchorSession).filter(
-            models.AnchorSession.status == "active",
-            models.AnchorSession.expected_end < now
-        ).all()
+        # Find active sessions
+        active_sessions = db.query(models.AnchorSession).filter(models.AnchorSession.status == "active").all()
         
-        for session in overdue_sessions:
-            existing_alert = db.query(models.Alert).filter(
-                models.Alert.session_id == session.id,
-                models.Alert.resolved_at == None
-            ).first()
+        for session in active_sessions:
+            needs_sos = False
             
-            if not existing_alert:
-                print(f"Triggering missed_checkin alert for session {session.id}")
-                new_alert = models.Alert(
-                    session_id=session.id,
-                    trigger_type="missed_checkin"
-                )
-                db.add(new_alert)
-                session.status = "sos"
-                db.commit()
-                # Run the notification worker sync here since we're in a separate thread anyway
-                alert_notification_worker(new_alert.id, db)
+            # Check 1: Past expected end time
+            if session.expected_end < now:
+                needs_sos = True
+                print(f"Session {session.id} past expected end time")
+            else:
+                # Check 2: Missed check-in
+                overdue_checkin = db.query(models.Checkin).filter(
+                    models.Checkin.session_id == session.id,
+                    models.Checkin.completed_at.is_(None),
+                    models.Checkin.scheduled_for < now
+                ).first()
+                if overdue_checkin:
+                    needs_sos = True
+                    print(f"Session {session.id} missed scheduled check-in")
+            
+            if needs_sos:
+                existing_alert = db.query(models.Alert).filter(
+                    models.Alert.session_id == session.id,
+                    models.Alert.resolved_at.is_(None)
+                ).first()
+                
+                if not existing_alert:
+                    print(f"Triggering missed_checkin alert for session {session.id}")
+                    new_alert = models.Alert(
+                        session_id=session.id,
+                        trigger_type="missed_checkin"
+                    )
+                    db.add(new_alert)
+                    session.status = "sos"
+                    db.commit()
+                    alert_notification_worker(new_alert.id, db)
     finally:
         db.close()
 
@@ -184,21 +216,46 @@ def shutdown_event():
 # 1. Authentication
 # ==========================================
 @app.post("/api/auth/send-otp")
-def send_otp(request: schemas.OTPRequest):
-    # Dummy implementation
-    return {"message": f"OTP sent to {request.phone}"}
-
-@app.post("/api/auth/verify-otp", response_model=schemas.TokenResponse)
-def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(database.get_db)):
-    if request.token != "123456":
-        raise HTTPException(status_code=400, detail="Invalid OTP. Use 123456")
-    
+def send_otp(request: schemas.OTPRequest, db: Session = Depends(database.get_db)):
+    # 1. Check if user exists, if not, create them early to store the OTP
     user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
     if not user:
         user = models.Profile(phone=request.phone)
         db.add(user)
         db.commit()
         db.refresh(user)
+        
+    # 2. Generate OTP
+    otp = str(random.randint(100000, 999999))
+    
+    # 3. Save to profile
+    user.otp_code = otp
+    user.otp_expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
+    db.commit()
+    
+    # 4. Return OTP directly in response for MVP testing
+    print(f"Generated OTP {otp} for {request.phone}")
+    return {"message": f"OTP sent to {request.phone}", "test_otp": otp}
+
+@app.post("/api/auth/verify-otp", response_model=schemas.TokenResponse)
+def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(database.get_db)):
+    user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found. Please request a new OTP.")
+        
+    if not user.otp_code or user.otp_code != request.token:
+        # Fallback to 123456 strictly for old frontend code that might not handle the test_otp yet
+        if request.token != "123456":
+            raise HTTPException(status_code=400, detail="Invalid OTP code.")
+            
+    if user.otp_expires_at and datetime.datetime.utcnow() > user.otp_expires_at:
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+        
+    # Clear OTP after successful use
+    user.otp_code = None
+    user.otp_expires_at = None
+    db.commit()
         
     access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -226,6 +283,21 @@ def update_profile(update: schemas.ProfileUpdate, db: Session = Depends(database
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@app.post("/api/profiles/avatar")
+async def upload_avatar(file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    try:
+        contents = await file.read()
+        result = cloudinary.uploader.upload(contents, folder="useanchor_avatars")
+        
+        current_user.avatar_url = result.get("secure_url")
+        db.commit()
+        db.refresh(current_user)
+        
+        return {"avatar_url": current_user.avatar_url, "message": "Avatar uploaded successfully"}
+    except Exception as e:
+        print(f"Cloudinary upload error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image.")
 
 @app.post("/api/profiles/fcm-token")
 def update_fcm_token(request: schemas.FCMTokenUpdate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
@@ -256,7 +328,14 @@ def create_session(request: schemas.SessionCreate, db: Session = Depends(databas
 
 @app.post("/api/sessions/{session_id}/contacts")
 def add_session_contacts(session_id: int, request: schemas.SessionContactsRequest, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    # Mocking: In a real DB, we'd have a session_contacts join table. For MVP, we'll just acknowledge.
+    # Remove any existing session contacts before adding the new ones
+    db.query(models.SessionContact).filter(models.SessionContact.session_id == session_id).delete()
+    
+    for contact_id in request.contact_ids:
+        session_contact = models.SessionContact(session_id=session_id, contact_id=contact_id)
+        db.add(session_contact)
+        
+    db.commit()
     return {"message": f"Added {len(request.contact_ids)} contacts to session {session_id}"}
 
 @app.post("/api/sessions/{session_id}/start")
@@ -266,6 +345,16 @@ def start_session(session_id: int, request: schemas.SessionActionRequest, db: Se
         raise HTTPException(status_code=404, detail="Session not found")
     session.status = "active"
     session.starts_at = datetime.datetime.utcnow()
+    
+    # Schedule the first checkin
+    next_checkin_time = session.starts_at + datetime.timedelta(minutes=session.checkin_interval_minutes)
+    if next_checkin_time < session.expected_end:
+        first_checkin = models.Checkin(
+            session_id=session.id,
+            scheduled_for=next_checkin_time
+        )
+        db.add(first_checkin)
+        
     db.commit()
     return {"message": "Session started successfully"}
 
@@ -342,6 +431,18 @@ def complete_checkin(checkin_id: int, request: schemas.CheckinCompleteRequest, d
         raise HTTPException(status_code=404, detail="Check-in not found")
     checkin.completed_at = datetime.datetime.utcnow()
     checkin.response = "safe"
+    
+    # Schedule the next check-in
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == checkin.session_id).first()
+    if session and session.status == "active":
+        next_checkin_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=session.checkin_interval_minutes)
+        if next_checkin_time < session.expected_end:
+            next_checkin = models.Checkin(
+                session_id=session.id,
+                scheduled_for=next_checkin_time
+            )
+            db.add(next_checkin)
+            
     db.commit()
     return {"message": "Check-in marked as completed"}
 

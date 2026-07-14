@@ -12,6 +12,9 @@ class Profile(Base):
     avatar_url = Column(String, nullable=True)
     onboarding_completed = Column(Boolean, default=False)
     fcm_token = Column(String, nullable=True)
+    
+    otp_code = Column(String, nullable=True)
+    otp_expires_at = Column(DateTime, nullable=True)
 
 class TrustedContact(Base):
     __tablename__ = "trusted_contacts"
@@ -24,6 +27,13 @@ class TrustedContact(Base):
     is_emergency_contact = Column(Boolean, default=False)
     opt_in_token = Column(String, nullable=True)
     opted_in = Column(Boolean, default=False)
+
+class SessionContact(Base):
+    __tablename__ = "session_contacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("sessions.id"))
+    contact_id = Column(Integer, ForeignKey("trusted_contacts.id"))
 
 class AnchorSession(Base):
     __tablename__ = "sessions"
