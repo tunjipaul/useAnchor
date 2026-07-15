@@ -1,5 +1,7 @@
 import { create } from "zustand";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, ApiError } from "../../../lib/api";
+import { getErrorDebugInfo } from "../../../lib/errorHelpers";
+import toast from "react-hot-toast";
 
 export interface Profile {
   id: number | string;
@@ -54,38 +56,51 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signInWithOtp: async (phone: string) => {
     try {
-      await apiFetch("/auth/send-otp", {
+      console.info("[useAnchor Auth] Sending OTP to", phone);
+      const response = await apiFetch<{ message: string; test_otp?: string }>("/auth/send-otp", {
         method: "POST",
         body: JSON.stringify({ phone }),
       });
+
+      if (response.test_otp) {
+        toast.success(`Test OTP Code: ${response.test_otp}`, {
+          duration: 10000,
+          icon: "💬",
+        });
+      }
       return { error: null };
     } catch (error) {
+      console.error("[useAnchor Auth] send-otp failed:", getErrorDebugInfo(error), error);
+      if (error instanceof ApiError && error.type === "cors") {
+        toast.error("CORS blocked — see error below and check browser console", { duration: 8000 });
+      }
       return { error };
     }
   },
 
   verifyOtp: async (phone: string, token: string) => {
     try {
+      console.info("[useAnchor Auth] Verifying OTP for", phone);
       const data = await apiFetch<{ access_token: string }>("/auth/verify-otp", {
         method: "POST",
         body: JSON.stringify({ phone, token }),
       });
-      
+
       localStorage.setItem("useanchor_access_token", data.access_token);
-      
-      // Fetch profile after login
+
       const profile = await apiFetch<Profile>("/profiles/me", {
-        headers: { Authorization: `Bearer ${data.access_token}` }
+        headers: { Authorization: `Bearer ${data.access_token}` },
       });
 
-      set({ 
-        session: { access_token: data.access_token }, 
-        user: profile, 
-        profile 
+      set({
+        session: { access_token: data.access_token },
+        user: profile,
+        profile,
       });
-      
+
       return { error: null };
     } catch (error) {
+      console.error("[useAnchor Auth] verify-otp failed:", getErrorDebugInfo(error), error);
       return { error };
     }
   },

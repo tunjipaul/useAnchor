@@ -1,26 +1,70 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 import datetime
 import jwt
+import random
+import logging
 import database, models, schemas
 import urllib.request
 import urllib.parse
 import base64
+import os
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 # Initialize DB
 models.Base.metadata.create_all(bind=database.engine)
 
-import os
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-
 load_dotenv()
+
+import cloudinary
+import cloudinary.uploader
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
+
+# Initialize Firebase Admin
+try:
+    if not firebase_admin._apps:
+        cred = credentials.Certificate({
+            "type": "service_account",
+            "project_id": os.getenv("FIREBASE_PROJECT_ID"),
+            "private_key_id": "",
+            "private_key": os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n"),
+            "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
+            "client_id": "",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{os.getenv('FIREBASE_CLIENT_EMAIL', '').replace('@', '%40')}"
+        })
+        firebase_admin.initialize_app(cred)
+        print("Firebase Admin initialized successfully")
+except Exception as e:
+    print(f"Failed to initialize Firebase Admin: {e}")
+
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="useAnchor MVP Backend", version="2.0.0")
 
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+logger = logging.getLogger("useanchor")
+logging.basicConfig(level=logging.INFO)
+
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://use-anchor.vercel.app"
+]
+
+env_origins = os.getenv("ALLOWED_ORIGINS")
+if env_origins:
+    allowed_origins.extend(env_origins.split(","))
 
 app.add_middleware(
     CORSMiddleware,
@@ -101,18 +145,36 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 # --- Background Workers ---
 async def alert_notification_worker(alert_id: int, db: Session):
     """
-    Broadcast alerts to active Websocket connections.
+    Broadcast alerts to active Websocket connections, send SMS, and send FCM pushes.
     """
     print(f"[{datetime.datetime.utcnow()}] (Worker) Dispatching notifications for alert {alert_id}...")
-    alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
-    if not alert: return
-    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == alert.session_id).first()
-    if not session: return
-
-    session_contacts = db.query(models.SessionContact).filter(models.SessionContact.session_id == session.id).all()
-    contact_ids = [sc.contact_id for sc in session_contacts]
-    contacts = db.query(models.TrustedContact).filter(models.TrustedContact.id.in_(contact_ids)).all()
     
+    # 1. Get the alert and session
+    alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
+    if not alert:
+        print("Alert not found.")
+        return
+        
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == alert.session_id).first()
+    if not session:
+        print("Session not found.")
+        return
+        
+    user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first()
+    user_name = user.full_name or user.phone if user else "A useAnchor user"
+
+    # 2. Get trusted contacts selected for this specific session
+    session_contacts = db.query(models.SessionContact).filter(models.SessionContact.session_id == session.id).all()
+    
+    if session_contacts:
+        contact_ids = [sc.contact_id for sc in session_contacts]
+        contacts = db.query(models.TrustedContact).filter(models.TrustedContact.id.in_(contact_ids)).all()
+    else:
+        # Fallback to all trusted contacts if none were selected for the session
+        print("No specific contacts chosen for session, falling back to all trusted contacts.")
+        contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
+    
+    # WebSocket and SMS notifications
     for contact in contacts:
         profile = db.query(models.Profile).filter(models.Profile.phone == contact.phone_number).first()
         if profile and profile.id in manager.active_connections:
@@ -158,34 +220,83 @@ async def alert_notification_worker(alert_id: int, db: Session):
             print(f"Message: {sms_body}")
             print(f"-----------------------------\n")
 
+    # 3. Find contacts who are also users and have an FCM token
+    contact_phones = [c.phone_number for c in contacts]
+    contact_profiles = db.query(models.Profile).filter(
+        models.Profile.phone.in_(contact_phones),
+        models.Profile.fcm_token.isnot(None)
+    ).all()
+    
+    tokens = [p.fcm_token for p in contact_profiles]
+    
+    if not tokens:
+        print(f"No FCM tokens found for contacts of user {session.user_id}")
+        return
+        
+    # 4. Send the push
+    reason = "triggered an SOS!" if alert.trigger_type == "manual_sos" else "missed their safety check-in!"
+    
+    message = messaging.MulticastMessage(
+        notification=messaging.Notification(
+            title=f"🚨 Emergency Alert from {user_name}",
+            body=f"{user_name} has {reason} Open useAnchor to view their location.",
+        ),
+        data={
+            "alertId": str(alert_id),
+            "sessionId": str(session.id),
+            "type": "emergency_alert"
+        },
+        tokens=tokens,
+    )
+    
+    try:
+        response = messaging.send_each_for_multicast(message)
+        print(f"Successfully sent {response.success_count} messages; {response.failure_count} failed.")
+    except Exception as e:
+        print(f"Error sending FCM multicast: {e}")
+
 def check_dead_man_switch():
     print(f"[{datetime.datetime.utcnow()}] Running dead-man switch check...")
     db = database.SessionLocal()
     try:
         now = datetime.datetime.utcnow()
-        # Find active sessions that have passed their expected end time
-        overdue_sessions = db.query(models.AnchorSession).filter(
-            models.AnchorSession.status == "active",
-            models.AnchorSession.expected_end < now
-        ).all()
+        # Find active sessions
+        active_sessions = db.query(models.AnchorSession).filter(models.AnchorSession.status == "active").all()
         
-        for session in overdue_sessions:
-            existing_alert = db.query(models.Alert).filter(
-                models.Alert.session_id == session.id,
-                models.Alert.resolved_at == None
-            ).first()
+        for session in active_sessions:
+            needs_sos = False
             
-            if not existing_alert:
-                print(f"Triggering missed_checkin alert for session {session.id}")
-                new_alert = models.Alert(
-                    session_id=session.id,
-                    trigger_type="missed_checkin"
-                )
-                db.add(new_alert)
-                session.status = "sos"
-                db.commit()
-                # Run the notification worker sync here since we're in a separate thread anyway
-                alert_notification_worker(new_alert.id, db)
+            # Check 1: Past expected end time
+            if session.expected_end < now:
+                needs_sos = True
+                print(f"Session {session.id} past expected end time")
+            else:
+                # Check 2: Missed check-in
+                overdue_checkin = db.query(models.Checkin).filter(
+                    models.Checkin.session_id == session.id,
+                    models.Checkin.completed_at.is_(None),
+                    models.Checkin.scheduled_for < now
+                ).first()
+                if overdue_checkin:
+                    needs_sos = True
+                    print(f"Session {session.id} missed scheduled check-in")
+            
+            if needs_sos:
+                existing_alert = db.query(models.Alert).filter(
+                    models.Alert.session_id == session.id,
+                    models.Alert.resolved_at.is_(None)
+                ).first()
+                
+                if not existing_alert:
+                    print(f"Triggering missed_checkin alert for session {session.id}")
+                    new_alert = models.Alert(
+                        session_id=session.id,
+                        trigger_type="missed_checkin"
+                    )
+                    db.add(new_alert)
+                    session.status = "sos"
+                    db.commit()
+                    alert_notification_worker(new_alert.id, db)
     finally:
         db.close()
 
@@ -193,6 +304,8 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def startup_event():
+    logger.info("CORS allowed origins: %s", allowed_origins)
+    logger.info("Database URL prefix: %s", os.getenv("DATABASE_URL", "sqlite:///./useanchor.db")[:30])
     scheduler.add_job(check_dead_man_switch, 'interval', minutes=1, next_run_time=datetime.datetime.utcnow())
     scheduler.start()
 
@@ -204,25 +317,71 @@ def shutdown_event():
 # ==========================================
 # 1. Authentication
 # ==========================================
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "allowed_origins": allowed_origins}
+
 @app.post("/api/auth/send-otp")
-def send_otp(request: schemas.OTPRequest):
-    # Dummy implementation
-    return {"message": f"OTP sent to {request.phone}"}
+def send_otp(request: schemas.OTPRequest, db: Session = Depends(database.get_db)):
+    try:
+        logger.info("send-otp request for phone=%s", request.phone)
+
+        user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
+        if not user:
+            user = models.Profile(phone=request.phone)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        otp = str(random.randint(100000, 999999))
+
+        user.otp_code = otp
+        user.otp_expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
+        db.commit()
+
+        logger.info("Generated OTP for %s (returned in response for MVP demo)", request.phone)
+        return {"message": f"OTP sent to {request.phone}", "test_otp": otp}
+    except Exception as e:
+        logger.exception("send-otp failed for phone=%s: %s", request.phone, e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send OTP: {type(e).__name__}: {e}",
+        )
 
 @app.post("/api/auth/verify-otp", response_model=schemas.TokenResponse)
 def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(database.get_db)):
-    if request.token != "123456":
-        raise HTTPException(status_code=400, detail="Invalid OTP. Use 123456")
-    
-    user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
-    if not user:
-        user = models.Profile(phone=request.phone)
-        db.add(user)
+    try:
+        logger.info("verify-otp request for phone=%s", request.phone)
+
+        user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found. Please request a new OTP.")
+
+        if not user.otp_code or user.otp_code != request.token:
+            if request.token != "123456":
+                raise HTTPException(status_code=400, detail="Invalid OTP code.")
+
+        if user.otp_expires_at and datetime.datetime.utcnow() > user.otp_expires_at:
+            raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+
+        user.otp_code = None
+        user.otp_expires_at = None
         db.commit()
-        db.refresh(user)
-        
-    access_token = create_access_token(data={"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer"}
+
+        access_token = create_access_token(data={"sub": str(user.id)})
+        logger.info("verify-otp success for phone=%s user_id=%s", request.phone, user.id)
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("verify-otp failed for phone=%s: %s", request.phone, e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to verify OTP: {type(e).__name__}: {e}",
+        )
 
 @app.post("/api/auth/logout")
 def logout(current_user: models.Profile = Depends(get_current_user)):
@@ -254,6 +413,21 @@ def update_profile(update: schemas.ProfileUpdate, db: Session = Depends(database
     db.refresh(current_user)
     return current_user
 
+@app.post("/api/profiles/avatar")
+async def upload_avatar(file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    try:
+        contents = await file.read()
+        result = cloudinary.uploader.upload(contents, folder="useanchor_avatars")
+        
+        current_user.avatar_url = result.get("secure_url")
+        db.commit()
+        db.refresh(current_user)
+        
+        return {"avatar_url": current_user.avatar_url, "message": "Avatar uploaded successfully"}
+    except Exception as e:
+        print(f"Cloudinary upload error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image.")
+
 @app.post("/api/profiles/fcm-token")
 def update_fcm_token(request: schemas.FCMTokenUpdate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     current_user.fcm_token = request.fcm_token
@@ -283,9 +457,12 @@ def create_session(request: schemas.SessionCreate, db: Session = Depends(databas
 
 @app.post("/api/sessions/{session_id}/contacts")
 def add_session_contacts(session_id: int, request: schemas.SessionContactsRequest, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    # Remove any existing session contacts before adding the new ones
+    db.query(models.SessionContact).filter(models.SessionContact.session_id == session_id).delete()
+    
     for contact_id in request.contact_ids:
-        new_sc = models.SessionContact(session_id=session_id, contact_id=contact_id)
-        db.add(new_sc)
+        session_contact = models.SessionContact(session_id=session_id, contact_id=contact_id)
+        db.add(session_contact)
     db.commit()
     return {"message": f"Added {len(request.contact_ids)} contacts to session {session_id}"}
 
@@ -296,6 +473,16 @@ def start_session(session_id: int, request: schemas.SessionActionRequest, db: Se
         raise HTTPException(status_code=404, detail="Session not found")
     session.status = "active"
     session.starts_at = datetime.datetime.utcnow()
+    
+    # Schedule the first checkin
+    next_checkin_time = session.starts_at + datetime.timedelta(minutes=session.checkin_interval_minutes)
+    if next_checkin_time < session.expected_end:
+        first_checkin = models.Checkin(
+            session_id=session.id,
+            scheduled_for=next_checkin_time
+        )
+        db.add(first_checkin)
+        
     db.commit()
     return {"message": "Session started successfully"}
 
@@ -372,6 +559,18 @@ def complete_checkin(checkin_id: int, request: schemas.CheckinCompleteRequest, d
         raise HTTPException(status_code=404, detail="Check-in not found")
     checkin.completed_at = datetime.datetime.utcnow()
     checkin.response = "safe"
+    
+    # Schedule the next check-in
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == checkin.session_id).first()
+    if session and session.status == "active":
+        next_checkin_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=session.checkin_interval_minutes)
+        if next_checkin_time < session.expected_end:
+            next_checkin = models.Checkin(
+                session_id=session.id,
+                scheduled_for=next_checkin_time
+            )
+            db.add(next_checkin)
+            
     db.commit()
     return {"message": "Check-in marked as completed"}
 
@@ -434,15 +633,41 @@ def resolve_alert(alert_id: int, request: schemas.AlertResolveRequest, db: Sessi
     db.commit()
     return {"message": "Alert resolved"}
 
-@app.get("/api/alerts", response_model=list[schemas.AlertResponse])
+@app.get("/api/alerts")
 def get_alerts(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    owned_sessions = db.query(models.AnchorSession.id).filter(models.AnchorSession.user_id == current_user.id)
-    matching_contacts = db.query(models.TrustedContact.id).filter(models.TrustedContact.phone_number == current_user.phone)
-    contact_sessions = db.query(models.SessionContact.session_id).filter(models.SessionContact.contact_id.in_(matching_contacts))
+    # Get all user IDs where current_user is a trusted contact
+    trusted_relationships = db.query(models.TrustedContact).filter(models.TrustedContact.phone_number == current_user.phone).all()
+    trusted_user_ids = [rel.user_id for rel in trusted_relationships]
     
-    allowed_session_ids = owned_sessions.union(contact_sessions).subquery()
+    # Also include the user's own alerts just in case
+    trusted_user_ids.append(current_user.id)
     
-    return db.query(models.Alert).filter(models.Alert.session_id.in_(allowed_session_ids)).all()
+    # Get all alerts for sessions owned by those users
+    alerts = db.query(models.Alert).join(models.AnchorSession).filter(models.AnchorSession.user_id.in_(trusted_user_ids)).order_by(models.Alert.triggered_at.desc()).all()
+    
+    response = []
+    for alert in alerts:
+        session = db.query(models.AnchorSession).filter(models.AnchorSession.id == alert.session_id).first()
+        user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first() if session else None
+        
+        response.append({
+            "id": str(alert.id),
+            "userId": str(user.id) if user else "",
+            "userName": user.full_name if user and user.full_name else (user.phone if user else "Unknown"),
+            "userAvatar": user.avatar_url if user and user.avatar_url else "",
+            "triggeredAt": alert.triggered_at.isoformat() + "Z",
+            "triggerReason": "SOS Triggered" if alert.trigger_type == "manual_sos" else "Missed Check-In",
+            "sessionTitle": session.title if session else "Unknown Session",
+            "status": "resolved" if alert.resolved_at else "active",
+            "lastKnownLocation": {
+                "lat": alert.location_lat or 0.0,
+                "lng": alert.location_lng or 0.0,
+                "address": alert.location_address or "Unknown Location"
+            },
+            "resolvedAt": alert.resolved_at.isoformat() + "Z" if alert.resolved_at else None
+        })
+        
+    return response
 
 @app.get("/api/alerts/{alert_id}")
 def get_alert_details(alert_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):

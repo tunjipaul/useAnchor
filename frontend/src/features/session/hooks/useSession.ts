@@ -38,7 +38,9 @@ export function useSession() {
           meet_person: sessionData.meet_person || "Unknown",
           meet_phone: sessionData.meet_phone || null,
           destination_address: sessionData.destination_address || null,
-          checkin_interval_minutes: 15,
+          // Calculate a sensible check-in interval: 
+          // If duration is < 15, interval = duration. Otherwise 15.
+          checkin_interval_minutes: Math.min(sessionData.durationMinutes, 15),
           expected_end: expectedEnd,
         })
       });
