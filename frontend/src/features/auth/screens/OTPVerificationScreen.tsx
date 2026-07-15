@@ -84,14 +84,13 @@ export default function OTPVerificationScreen() {
 
     setIsLoading(true);
     setErrorMsg(null);
-    setDebugMsg(null);
-
 
     try {
       const { error } = await verifyOtp(phoneNumber, code);
       if (error) {
-        setErrorMsg(handleError
-
+        setErrorMsg(handleError(error));
+      } else {
+        setIsSuccess(true);
         // Navigate to correct page based on onboarding status and mode
         setTimeout(() => {
           const profile = useAuthStore.getState().profile;
@@ -103,9 +102,7 @@ export default function OTPVerificationScreen() {
         }, 1000);
       }
     } catch (err: unknown) {
-      console.error("Verification error:", err);
-      setErrorMsg(getFriendlyErrorMessage(err, "Unexpected verification error."));
-      setErrorMsg(handleError
+      setErrorMsg(handleError(err));
     }
   }
 
@@ -188,14 +185,14 @@ export default function OTPVerificationScreen() {
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="space-y-1 mb-6">
-              <p className="text-[14px] leading-5 text-center px-1 font-medium" style={{ color: "#ba1a1a" }}>
+            <div className="mb-6">
+              <p className="text-[14px]" style={{ color: "#ba1a1a" }}>
                 {errorMsg}
               </p>
-              {debugMsg && (mb-6">
-              <p className="text-[14px] leading-5 text-center px-1 font-medium" style={{ color: "#ba1a1a" }}>
-                {errorMsg}
-              </p>ntextual Links */}
+            </div>
+          )}
+
+          {/* Contextual Links */}
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-1.5 text-[14px] leading-5" style={{ color: "#5a413a" }}>
               <Clock size={16} style={{ color: "#5a413a" }} />

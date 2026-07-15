@@ -2,10 +2,9 @@
  * Primary and secondary backend URLs for failover support.
  * Configured via environment variables in Vercel or local .env files.
  * Fallback to localhost for local development.
- * Note: Base URLs should NOT include /api — endpoints will add it explicitly.
  */
 export const PRIMARY_API_URL =
-  import.meta.env.VITE_PRIMARY_API_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_PRIMARY_API_URL || "http://127.0.0.1:8000/api";
 
 export const SECONDARY_API_URL = import.meta.env.VITE_SECONDARY_API_URL || null;
 
