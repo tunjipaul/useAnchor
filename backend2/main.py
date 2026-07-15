@@ -681,7 +681,7 @@ def get_alert_details(alert_id: int, db: Session = Depends(database.get_db), cur
     return {
         "id": alert.id,
         "status": "active" if not alert.resolved_at else "resolved",
-        "created_at": alert.created_at,
+        "triggered_at": alert.triggered_at,
         "trigger_type": alert.trigger_type,
         "location_lat": alert.location_lat,
         "location_lng": alert.location_lng,

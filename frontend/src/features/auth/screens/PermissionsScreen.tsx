@@ -14,6 +14,7 @@ export default function PermissionsScreen() {
   const [micStatus, setMicStatus] = useState<PermissionState | "prompt">("prompt");
 
   const { requestNotificationPermission } = usePushNotifications();
+  const updateFcmToken = useAuthStore((state) => state.updateFcmToken);
 
   // Sync initial permission states on load
   useEffect(() => {
@@ -66,8 +67,7 @@ export default function PermissionsScreen() {
       if (token || Notification.permission === "granted") {
         setNotificationStatus("granted");
         if (token && user) {
-          // For MVP, just log the token
-          console.log("FCM Token:", token);
+          await updateFcmToken(token);
         }
       } else {
         setNotificationStatus("denied");

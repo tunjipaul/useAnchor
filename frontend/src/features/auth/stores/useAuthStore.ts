@@ -21,6 +21,7 @@ interface AuthState {
   signInWithOtp: (phone: string) => Promise<{ error: any }>;
   verifyOtp: (phone: string, token: string) => Promise<{ error: any }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
+  updateFcmToken: (token: string) => Promise<{ error: any }>;
   logout: () => Promise<{ error: any }>;
 }
 
@@ -114,6 +115,23 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ profile: updatedProfile, user: updatedProfile });
       return { error: null };
     } catch (error) {
+      return { error };
+    }
+  },
+
+  updateFcmToken: async (token: string) => {
+    try {
+      await apiFetch("/profiles/fcm-token", {
+        method: "POST",
+        body: JSON.stringify({ fcm_token: token }),
+      });
+      set((state) => ({
+        profile: state.profile ? { ...state.profile, fcm_token: token } : null,
+        user: state.user ? { ...state.user, fcm_token: token } : null,
+      }));
+      return { error: null };
+    } catch (error) {
+      console.error("[useAnchor Auth] Failed to update FCM token on server:", error);
       return { error };
     }
   },

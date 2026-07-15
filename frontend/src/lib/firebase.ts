@@ -24,11 +24,25 @@ export { messaging, onMessage };
 
 export async function requestNotificationPermission(): Promise<string | null> {
   try {
+    if (!("Notification" in window)) {
+      console.warn("This browser does not support desktop notifications");
+      return null;
+    }
+
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return null;
+    if (permission !== 'granted') {
+      console.warn("Notification permission was not granted:", permission);
+      return null;
+    }
 
     if (!messaging) {
       console.warn("FCM messaging not initialized. Permission granted but no token will be generated.");
+      return null;
+    }
+
+    // Check if IndexedDB is available - required for Firebase Messaging (often blocked in Incognito)
+    if (!window.indexedDB) {
+      console.error("IndexedDB is not supported in this environment. Notifications may not work (common in Incognito mode).");
       return null;
     }
 
@@ -36,8 +50,12 @@ export async function requestNotificationPermission(): Promise<string | null> {
       vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
     });
     return token;
-  } catch (error) {
-    console.error('FCM token error:', error);
+  } catch (error: any) {
+    if (error?.code === 'messaging/indexed-db-unsupported' || error?.message?.includes('indexedDB')) {
+      console.error('FCM error: IndexedDB is unsupported. This is common in Incognito/Private mode.', error);
+    } else {
+      console.error('FCM token error:', error);
+    }
     return null;
   }
 }

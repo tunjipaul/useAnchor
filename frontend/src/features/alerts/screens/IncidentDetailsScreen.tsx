@@ -81,29 +81,28 @@ export default function IncidentDetailsScreen() {
     if (!id) return;
     setIsRefreshing(true);
     try {
-      // MVP: fetch active session to mock alert since no specific alert endpoint
-      const data = await apiFetch<any>("/sessions/active").catch(() => null);
+      const data = await apiFetch<any>(`/alerts/${id}`);
 
       if (data) {
-        if (data.status !== "active" && data.status !== "sos" && data.status !== "emergency") {
+        if (data.status !== "active") {
           navigate(`/alerts/${id}/resolved`, { replace: true });
         } else {
           setAlert({
             id: data.id,
-            userId: data.user_id,
-            userName: "Unknown User",
-            userAvatar: "", // Will use initial fallback
-            userPhone: "",
+            userId: data.profile?.id,
+            userName: data.profile?.full_name || "Unknown User",
+            userAvatar: data.profile?.avatar_url || "", 
+            userPhone: data.profile?.phone || "",
             triggeredAt: data.triggered_at,
-            triggerReason: "SOS Triggered",
-            sessionTitle: data.title || "Active Safety Session",
-            actualStart: data.starts_at || data.expected_end,
-            expectedEnd: data.expected_end,
-            status: data.status === "active" ? "active" : "resolved",
+            triggerReason: data.trigger_type === "manual_sos" ? "SOS Triggered" : "Missed Check-In",
+            sessionTitle: data.session?.title || "Active Safety Session",
+            actualStart: data.session?.starts_at || data.triggered_at,
+            expectedEnd: data.session?.expected_end,
+            status: data.status,
             lastKnownLocation: {
-              lat: data.destination_lat || 0.0,
-              lng: data.destination_lng || 0.0,
-              address: data.destination_address || "Unknown Location",
+              lat: data.location_lat || 0.0,
+              lng: data.location_lng || 0.0,
+              address: data.location_address || "Unknown Location",
             },
             batteryLevel: 82,
             signalStrength: "Strong",
