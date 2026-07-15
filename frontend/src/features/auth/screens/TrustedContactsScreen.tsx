@@ -25,6 +25,7 @@ export default function TrustedContactsScreen() {
   const [newPhone, setNewPhone] = useState("");
   const [formError, setFormError] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -32,6 +33,31 @@ export default function TrustedContactsScreen() {
       setToastMessage(null);
     }, 3000);
   };
+
+  // Auto-lookup name by phone number
+  useEffect(() => {
+    async function lookupPhone() {
+      if (!newPhone.trim()) return;
+      const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim());
+      if (phoneNumberObj && phoneNumberObj.isValid()) {
+        try {
+          setIsLookupLoading(true);
+          const formattedPhone = encodeURIComponent(phoneNumberObj.number);
+          const response = await apiFetch<any>(`/profiles/lookup?phone=${formattedPhone}`);
+          if (response.found && response.name) {
+            setNewName(response.name);
+            triggerToast("Anchor profile found! Name autofilled.");
+          }
+        } catch (error) {
+          // Ignore lookup errors
+        } finally {
+          setIsLookupLoading(false);
+        }
+      }
+    }
+    const timer = setTimeout(lookupPhone, 500);
+    return () => clearTimeout(timer);
+  }, [newPhone]);
 
   // Fetch trusted contacts from database on mount
   useEffect(() => {
@@ -72,8 +98,8 @@ export default function TrustedContactsScreen() {
     e.preventDefault();
     if (!user) return;
 
-    if (!newName.trim() || !newPhone.trim()) {
-      setFormError("Both name and phone number are required.");
+    if (newName.trim().length < 2 || !newPhone.trim()) {
+      setFormError("Name must be at least 2 characters, and phone number is required.");
       return;
     }
 
@@ -210,18 +236,25 @@ export default function TrustedContactsScreen() {
                   </p>
                 )}
                 <div className="space-y-3">
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      placeholder="Phone Number (e.g. +234...)"
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      className="w-full h-10 px-3 pr-10 rounded-lg border border-[#e2bfb5] text-[14px] focus:outline-none focus:border-[#ac2d00]"
+                    />
+                    {isLookupLoading && (
+                      <div className="absolute right-3 top-2.5">
+                        <Loader2 className="w-5 h-5 text-[#ac2d00] animate-spin" />
+                      </div>
+                    )}
+                  </div>
                   <input
                     type="text"
                     placeholder="Name"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    className="w-full h-10 px-3 rounded-lg border border-[#e2bfb5] text-[14px] focus:outline-none focus:border-[#ac2d00]"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Phone Number (e.g. +234...)"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
                     className="w-full h-10 px-3 rounded-lg border border-[#e2bfb5] text-[14px] focus:outline-none focus:border-[#ac2d00]"
                   />
                   <button

@@ -101,7 +101,32 @@ export default function CreateSessionScreen() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [addContactError, setAddContactError] = useState<string | null>(null);
+
+  // Auto-lookup for Quick Add Contact
+  useEffect(() => {
+    async function lookupPhone() {
+      if (!newContactPhone.trim()) return;
+      const phoneNumberObj = parsePhoneNumberFromString(newContactPhone.trim(), "US");
+      if (phoneNumberObj && phoneNumberObj.isValid()) {
+        try {
+          setIsLookupLoading(true);
+          const formattedPhone = encodeURIComponent(phoneNumberObj.number);
+          const response = await apiFetch<any>(`/profiles/lookup?phone=${formattedPhone}`);
+          if (response.found && response.name) {
+            setNewContactName(response.name);
+            // We don't have triggerToast here, so we could just set it silently.
+          }
+        } catch (error) {
+        } finally {
+          setIsLookupLoading(false);
+        }
+      }
+    }
+    const timer = setTimeout(lookupPhone, 500);
+    return () => clearTimeout(timer);
+  }, [newContactPhone]);
   const [startSessionError, setStartSessionError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [isForceEnding, setIsForceEnding] = useState(false);
@@ -158,7 +183,7 @@ export default function CreateSessionScreen() {
   }, [user]);
 
   // Step Validation
-  const isStep1Valid = title.trim() !== "" && location.trim() !== "" && personName.trim() !== "" && phone.trim() !== "";
+  const isStep1Valid = title.trim().length >= 2 && location.trim() !== "" && personName.trim().length >= 2 && phone.trim() !== "";
   const selectedContactsCount = contacts.filter((c) => c.selected).length;
   const isStep2Valid = selectedContactsCount > 0;
 
@@ -183,7 +208,7 @@ export default function CreateSessionScreen() {
   }
 
   async function handleAddNewContact() {
-    if (newContactName.trim() === "" || newContactPhone.trim() === "" || !user) return;
+    if (newContactName.trim().length < 2 || newContactPhone.trim() === "" || !user) return;
     setAddContactError(null);
 
     // Validate phone number using libphonenumber-js
@@ -229,6 +254,17 @@ export default function CreateSessionScreen() {
     try {
       const selectedContactIds = contacts.filter((c) => c.selected).map((c) => c.id);
       
+      let formattedPhone = phone;
+      if (phone.trim()) {
+        const phoneObj = parsePhoneNumberFromString(phone.trim(), "US");
+        if (phoneObj && phoneObj.isValid()) {
+          formattedPhone = phoneObj.number;
+        } else {
+          setStartSessionError("Please enter a valid meeting person's phone number.");
+          return;
+        }
+      }
+
       // Calculate start date. If the user didn't explicitly pick a future time, 
       // use 'now' to ensure the full duration starts from the moment of activation.
       const selectedDateTime = new Date(`${date}T${time}:00`);
@@ -242,7 +278,7 @@ export default function CreateSessionScreen() {
         {
           title,
           meet_person: personName || undefined,
-          meet_phone: phone || undefined,
+          meet_phone: formattedPhone || undefined,
           destination_address: location || undefined,
           destination_lat: lat || undefined,
           destination_lng: lng || undefined,
@@ -519,18 +555,25 @@ export default function CreateSessionScreen() {
                           </button>
                         </div>
                         <div className="space-y-3">
+                          <div className="relative">
+                            <input
+                              type="tel"
+                              placeholder="Phone Number (e.g. +1...)"
+                              value={newContactPhone}
+                              onChange={(e) => setNewContactPhone(e.target.value)}
+                              className="w-full h-10 px-3 pr-10 rounded-lg border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] text-[14px] outline-none"
+                            />
+                            {isLookupLoading && (
+                              <div className="absolute right-3 top-2.5">
+                                <Loader2 className="w-5 h-5 text-[#ac2d00] animate-spin" />
+                              </div>
+                            )}
+                          </div>
                           <input
                             type="text"
                             placeholder="Name"
                             value={newContactName}
                             onChange={(e) => setNewContactName(e.target.value)}
-                            className="w-full h-10 px-3 rounded-lg border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] text-[14px] outline-none"
-                          />
-                          <input
-                            type="tel"
-                            placeholder="Phone Number (e.g. +1...)"
-                            value={newContactPhone}
-                            onChange={(e) => setNewContactPhone(e.target.value)}
                             className="w-full h-10 px-3 rounded-lg border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] text-[14px] outline-none"
                           />
                           {addContactError && (

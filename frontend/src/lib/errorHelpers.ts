@@ -22,11 +22,23 @@ export function getFriendlyErrorMessage(error: unknown, fallback: string): strin
   }
 
   let msg = "";
-  if (typeof error === "string") {
+  if (error && typeof error === 'object' && 'data' in error && error.data && Array.isArray((error.data as any).detail)) {
+    const details = (error.data as any).detail;
+    if (details.length > 0 && details[0].msg) {
+      msg = details.map((d: any) => `${d.loc?.[d.loc.length - 1] || 'Field'}: ${d.msg}`).join(", ");
+    } else {
+      msg = JSON.stringify(details);
+    }
+  } else if (typeof error === 'string') {
     msg = error;
-  } else if (error && typeof error === "object") {
-    const err = error as { message?: string; error_description?: string; statusText?: string };
+  } else if (error && typeof error === 'object') {
+    const err = error as any;
     msg = err.message || err.error_description || err.statusText || "";
+    if (msg === "[object Object]") {
+      try {
+        msg = JSON.stringify(err.data || err);
+      } catch (e) {}
+    }
     if (!msg && Object.keys(error).length > 0) {
       msg = JSON.stringify(error);
     }

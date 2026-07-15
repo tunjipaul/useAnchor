@@ -39,6 +39,8 @@ import EmergencyAlertsScreen from "./features/alerts/screens/EmergencyAlertsScre
 import IncidentDetailsScreen from "./features/alerts/screens/IncidentDetailsScreen";
 import IncidentResolvedScreen from "./features/alerts/screens/IncidentResolvedScreen";
 
+import ProtectedRoute from "./components/ProtectedRoute";
+
 export default function App() {
   const initializeAuth = useAuthStore((state) => state.initialize);
 
@@ -78,32 +80,34 @@ export default function App() {
         <Route path="/auth/trusted-contacts" element={<TrustedContactsScreen />} />
         <Route path="/auth/permissions" element={<PermissionsScreen />} />
 
-        {/* Dashboard */}
-        <Route path="/dashboard" element={<HomeScreen />} />
+        <Route element={<ProtectedRoute />}>
+          {/* Dashboard */}
+          <Route path="/dashboard" element={<HomeScreen />} />
 
-        {/* Session */}
-        <Route path="/session/new" element={<CreateSessionScreen />} />
-        <Route path="/session/active" element={<ActiveSessionScreen />} />
-        <Route path="/session/summary" element={<SessionSummaryScreen />} />
-        <Route path="/session/timeline/:id" element={<SessionTimelineScreen />} />
-        <Route path="/session/history" element={<SessionHistoryScreen />} />
-        <Route path="/session/sos" element={<SOSActivatedScreen />} />
+          {/* Session */}
+          <Route path="/session/new" element={<CreateSessionScreen />} />
+          <Route path="/session/active" element={<ActiveSessionScreen />} />
+          <Route path="/session/summary" element={<SessionSummaryScreen />} />
+          <Route path="/session/timeline/:id" element={<SessionTimelineScreen />} />
+          <Route path="/session/history" element={<SessionHistoryScreen />} />
+          <Route path="/session/sos" element={<SOSActivatedScreen />} />
 
-        {/* Contacts */}
-        <Route path="/contacts" element={<ContactsManagerScreen />} />
-        <Route path="/contacts/opt-in" element={<ContactOptInScreen />} />
+          {/* Contacts */}
+          <Route path="/contacts" element={<ContactsManagerScreen />} />
+          <Route path="/contacts/opt-in" element={<ContactOptInScreen />} />
 
-        {/* Alert */}
-        <Route path="/alert" element={<AlertLandingScreen />} />
-        <Route path="/alert/live" element={<LiveLocationScreen />} />
+          {/* Alert */}
+          <Route path="/alert" element={<AlertLandingScreen />} />
+          <Route path="/alert/live" element={<LiveLocationScreen />} />
 
-        {/* Alerts (Trusted Contacts) */}
-        <Route path="/alerts" element={<EmergencyAlertsScreen />} />
-        <Route path="/alerts/:id" element={<IncidentDetailsScreen />} />
-        <Route path="/alerts/:id/resolved" element={<IncidentResolvedScreen />} />
+          {/* Alerts (Trusted Contacts) */}
+          <Route path="/alerts" element={<EmergencyAlertsScreen />} />
+          <Route path="/alerts/:id" element={<IncidentDetailsScreen />} />
+          <Route path="/alerts/:id/resolved" element={<IncidentResolvedScreen />} />
 
-        {/* Settings */}
-        <Route path="/settings" element={<SettingsScreen />} />
+          {/* Settings */}
+          <Route path="/settings" element={<SettingsScreen />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

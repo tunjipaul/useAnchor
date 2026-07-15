@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -7,6 +7,9 @@ import jwt
 import random
 import logging
 import database, models, schemas
+import urllib.request
+import urllib.parse
+import base64
 import os
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -77,6 +80,45 @@ ALGORITHM = "HS256"
 
 security = HTTPBearer()
 
+# --- WebSocket Manager ---
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[int, WebSocket] = {}
+
+    async def connect(self, websocket: WebSocket, user_id: int):
+        await websocket.accept()
+        self.active_connections[user_id] = websocket
+
+    def disconnect(self, user_id: int):
+        if user_id in self.active_connections:
+            del self.active_connections[user_id]
+
+    async def send_personal_message(self, message: dict, user_id: int):
+        if user_id in self.active_connections:
+            await self.active_connections[user_id].send_json(message)
+
+manager = ConnectionManager()
+
+@app.websocket("/api/ws/alerts")
+async def websocket_endpoint(websocket: WebSocket, token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if user_id is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    except jwt.PyJWTError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+        
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            # Keep connection alive, listen for any client messages if needed
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.datetime.utcnow() + datetime.timedelta(days=7)
@@ -101,9 +143,9 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return user
 
 # --- Background Workers ---
-def alert_notification_worker(alert_id: int, db: Session):
+async def alert_notification_worker(alert_id: int, db: Session):
     """
-    Sends FCM pushes to trusted contacts for a given alert.
+    Broadcast alerts to active Websocket connections, send SMS, and send FCM pushes.
     """
     print(f"[{datetime.datetime.utcnow()}] (Worker) Dispatching notifications for alert {alert_id}...")
     
@@ -132,6 +174,52 @@ def alert_notification_worker(alert_id: int, db: Session):
         print("No specific contacts chosen for session, falling back to all trusted contacts.")
         contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
     
+    # WebSocket and SMS notifications
+    for contact in contacts:
+        profile = db.query(models.Profile).filter(models.Profile.phone == contact.phone_number).first()
+        if profile and profile.id in manager.active_connections:
+            message = {
+                "type": "NEW_ALERT",
+                "alert": {
+                    "id": alert.id,
+                    "session_id": session.id,
+                    "trigger_type": alert.trigger_type,
+                    "status": "active"
+                }
+            }
+            await manager.send_personal_message(message, profile.id)
+            
+        twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
+        twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
+        twilio_from = os.getenv("TWILIO_FROM_NUMBER")
+        
+        sms_body = f"EMERGENCY (useAnchor): SOS triggered by session '{session.title}'. They may need immediate help. Location: https://maps.google.com/?q={alert.location_lat},{alert.location_lng}"
+        
+        if twilio_sid and twilio_token and twilio_from and "dummy" not in twilio_sid.lower():
+            try:
+                url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
+                data = urllib.parse.urlencode({
+                    "To": contact.phone_number,
+                    "From": twilio_from,
+                    "Body": sms_body
+                }).encode('utf-8')
+                
+                auth_str = f"{twilio_sid}:{twilio_token}"
+                b64_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
+                
+                req = urllib.request.Request(url, data=data)
+                req.add_header("Authorization", f"Basic {b64_auth}")
+                urllib.request.urlopen(req)
+                print(f"[Twilio] Sent SMS to {contact.phone_number}")
+            except Exception as e:
+                print(f"[Twilio] ERROR sending SMS to {contact.phone_number}: {e}")
+                print(f"\n[FALLBACK SMS TERMINAL OUTPUT]\nTo: {contact.phone_number}\nMessage: {sms_body}\n")
+        else:
+            print(f"\n--- [MOCKED SMS DISPATCH] ---")
+            print(f"To: {contact.phone_number}")
+            print(f"Message: {sms_body}")
+            print(f"-----------------------------\n")
+
     # 3. Find contacts who are also users and have an FCM token
     contact_phones = [c.phone_number for c in contacts]
     contact_profiles = db.query(models.Profile).filter(
@@ -306,6 +394,12 @@ def logout(current_user: models.Profile = Depends(get_current_user)):
 @app.get("/api/profiles/me", response_model=schemas.ProfileResponse)
 def get_profile(current_user: models.Profile = Depends(get_current_user)):
     return current_user
+@app.get("/api/profiles/lookup")
+def lookup_profile(phone: str, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    profile = db.query(models.Profile).filter(models.Profile.phone == phone).first()
+    if profile and profile.full_name:
+        return {"found": True, "name": profile.full_name, "avatar_url": profile.avatar_url}
+    return {"found": False}
 
 @app.put("/api/profiles/me", response_model=schemas.ProfileResponse)
 def update_profile(update: schemas.ProfileUpdate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
@@ -369,7 +463,6 @@ def add_session_contacts(session_id: int, request: schemas.SessionContactsReques
     for contact_id in request.contact_ids:
         session_contact = models.SessionContact(session_id=session_id, contact_id=contact_id)
         db.add(session_contact)
-        
     db.commit()
     return {"message": f"Added {len(request.contact_ids)} contacts to session {session_id}"}
 
@@ -525,7 +618,7 @@ def cancel_alert(alert_id: int, request: schemas.AlertCancelRequest, db: Session
     return {"message": "Alert cancelled successfully"}
 
 @app.post("/api/alerts/{alert_id}/resolve")
-def resolve_alert(alert_id: int, request: schemas.AlertResolveRequest, db: Session = Depends(database.get_db)):
+def resolve_alert(alert_id: int, request: schemas.AlertResolveRequest, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -577,7 +670,7 @@ def get_alerts(db: Session = Depends(database.get_db), current_user: models.Prof
     return response
 
 @app.get("/api/alerts/{alert_id}")
-def get_alert_details(alert_id: int, db: Session = Depends(database.get_db)):
+def get_alert_details(alert_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -612,10 +705,14 @@ def get_alert_details(alert_id: int, db: Session = Depends(database.get_db)):
 # ==========================================
 @app.get("/api/contacts", response_model=list[schemas.ContactResponse])
 def list_contacts(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    return db.query(models.TrustedContact).filter(models.TrustedContact.user_id == current_user.id).all()
+    contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == current_user.id).all()
+    for c in contacts:
+        profile_exists = db.query(models.Profile).filter(models.Profile.phone == c.phone_number).first() is not None
+        setattr(c, "has_account", profile_exists)
+    return contacts
 
 @app.get("/api/contacts/{contact_id}", response_model=schemas.ContactResponse)
-def get_contact(contact_id: int, db: Session = Depends(database.get_db)):
+def get_contact(contact_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     contact = db.query(models.TrustedContact).filter(models.TrustedContact.id == contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")

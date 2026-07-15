@@ -52,6 +52,13 @@ class AnchorSession(Base):
     
     status = Column(String, default="draft") # draft, active, ended, sos
     
+class SessionContact(Base):
+    __tablename__ = "session_contacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("sessions.id"))
+    contact_id = Column(Integer, ForeignKey("trusted_contacts.id"))
+    
 class Checkin(Base):
     __tablename__ = "checkins"
 

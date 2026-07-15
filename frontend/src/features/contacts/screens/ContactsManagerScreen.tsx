@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, UserPlus, Search, MoreVertical, Plus, X,
-  Info,
+  Info, Loader2,
   Edit2, Trash2, MapPin, EyeOff
 } from "lucide-react";
 import MobileBottomNav from "../../../components/MobileBottomNav";
@@ -51,6 +51,59 @@ export default function ContactsManagerScreen() {
   const [drawerTag, setDrawerTag] = useState<RelationshipTag>(null);
   const [drawerIsPrimary, setDrawerIsPrimary] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  
+  const [isMobileLookupLoading, setIsMobileLookupLoading] = useState(false);
+  const [isDesktopLookupLoading, setIsDesktopLookupLoading] = useState(false);
+
+  // Auto-lookup for Mobile Modal
+  useEffect(() => {
+    async function lookupPhone() {
+      if (!newPhone.trim() || selectedContactId) return;
+      const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim(), "US");
+      if (phoneNumberObj && phoneNumberObj.isValid()) {
+        try {
+          setIsMobileLookupLoading(true);
+          const formattedPhone = encodeURIComponent(phoneNumberObj.number);
+          const response = await apiFetch<any>(`/profiles/lookup?phone=${formattedPhone}`);
+          if (response.found && response.name) {
+            const parts = response.name.split(" ");
+            setNewFirstName(parts[0]);
+            setNewLastName(parts.slice(1).join(" "));
+            triggerToast("Anchor profile found! Name autofilled.");
+          }
+        } catch (error) {
+        } finally {
+          setIsMobileLookupLoading(false);
+        }
+      }
+    }
+    const timer = setTimeout(lookupPhone, 500);
+    return () => clearTimeout(timer);
+  }, [newPhone, selectedContactId]);
+
+  // Auto-lookup for Desktop Drawer
+  useEffect(() => {
+    async function lookupPhone() {
+      if (!drawerPhone.trim() || selectedContactId) return;
+      const phoneNumberObj = parsePhoneNumberFromString(drawerPhone.trim(), "US");
+      if (phoneNumberObj && phoneNumberObj.isValid()) {
+        try {
+          setIsDesktopLookupLoading(true);
+          const formattedPhone = encodeURIComponent(phoneNumberObj.number);
+          const response = await apiFetch<any>(`/profiles/lookup?phone=${formattedPhone}`);
+          if (response.found && response.name) {
+            setDrawerFullName(response.name);
+            triggerToast("Anchor profile found! Name autofilled.");
+          }
+        } catch (error) {
+        } finally {
+          setIsDesktopLookupLoading(false);
+        }
+      }
+    }
+    const timer = setTimeout(lookupPhone, 500);
+    return () => clearTimeout(timer);
+  }, [drawerPhone, selectedContactId]);
 
   const fetchContacts = async () => {
     if (!user) return;
@@ -68,6 +121,7 @@ export default function ContactsManagerScreen() {
           tag: c.relationship as RelationshipTag,
           isPrimary: c.is_emergency_contact,
           status: c.opted_in ? "active" : "disabled",
+          hasAccount: c.has_account,
         };
       });
       setContacts(mapped);
@@ -103,8 +157,8 @@ export default function ContactsManagerScreen() {
   const handleSaveManualContact = async () => {
     if (!user) return;
     setModalError(null);
-    if (!newFirstName.trim()) {
-      setModalError("First Name is required.");
+    if (newFirstName.trim().length < 2) {
+      setModalError("First Name must be at least 2 characters.");
       return;
     }
     if (!newPhone.trim()) {
@@ -182,8 +236,8 @@ export default function ContactsManagerScreen() {
   const handleSaveDrawerContact = async () => {
     if (!user) return;
     setDrawerError(null);
-    if (!drawerFullName.trim()) {
-      setDrawerError("Full Name is required.");
+    if (drawerFullName.trim().length < 2) {
+      setDrawerError("Full Name must be at least 2 characters.");
       return;
     }
     if (!drawerPhone.trim()) {
@@ -359,9 +413,14 @@ export default function ContactsManagerScreen() {
                             <span className="text-[#ac2d00] font-bold text-xl">{contact.firstName.charAt(0).toUpperCase()}</span>
                           </div>
                           <div>
-                            <p className="font-bold text-[18px] text-[#261814]">
-                              {contact.firstName} {contact.lastName}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-[18px] text-[#261814]">
+                                {contact.firstName} {contact.lastName}
+                              </p>
+                              {contact.hasAccount && (
+                                <span className="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-[#007caf] text-white">App User</span>
+                              )}
+                            </div>
                             <p className="text-[14px] text-[#5a413a]">{contact.phone}</p>
                           </div>
                         </div>
@@ -418,16 +477,23 @@ export default function ContactsManagerScreen() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
+                  <label className="block text-[12px] font-bold uppercase tracking-wider text-[#5a413a] mb-1">Phone Number <span className="text-[#ac2d00]">*</span></label>
+                  <div className="relative">
+                    <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full h-12 px-3 border border-[#e2bfb5] rounded-lg focus:ring-1 focus:ring-[#ac2d00] focus:border-[#ac2d00] outline-none pr-10" />
+                    {isMobileLookupLoading && (
+                      <div className="absolute right-3 top-3.5">
+                        <Loader2 className="w-5 h-5 text-[#ac2d00] animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
                   <label className="block text-[12px] font-bold uppercase tracking-wider text-[#5a413a] mb-1">First Name <span className="text-[#ac2d00]">*</span></label>
                   <input type="text" value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} placeholder="e.g. Jane" className="w-full h-12 px-3 border border-[#e2bfb5] rounded-lg focus:ring-1 focus:ring-[#ac2d00] focus:border-[#ac2d00] outline-none" />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold uppercase tracking-wider text-[#5a413a] mb-1">Last Name</label>
                   <input type="text" value={newLastName} onChange={(e) => setNewLastName(e.target.value)} placeholder="e.g. Doe" className="w-full h-12 px-3 border border-[#e2bfb5] rounded-lg focus:ring-1 focus:ring-[#ac2d00] focus:border-[#ac2d00] outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-bold uppercase tracking-wider text-[#5a413a] mb-1">Phone Number <span className="text-[#ac2d00]">*</span></label>
-                  <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full h-12 px-3 border border-[#e2bfb5] rounded-lg focus:ring-1 focus:ring-[#ac2d00] focus:border-[#ac2d00] outline-none" />
                 </div>
                 {modalError && (
                   <div className="text-[13px] font-bold text-[#ba1a1a] bg-[#ffdad6]/40 p-3 rounded-lg text-left">
@@ -500,7 +566,12 @@ export default function ContactsManagerScreen() {
                         <span className="text-[#ac2d00] font-bold text-2xl">{contact.firstName.charAt(0).toUpperCase()}</span>
                       </div>
                       <div>
-                        <h3 className="text-[18px] font-semibold text-[#261814]">{contact.firstName} {contact.lastName}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-[18px] font-semibold text-[#261814]">{contact.firstName} {contact.lastName}</h3>
+                          {contact.hasAccount && (
+                            <span className="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-[#007caf] text-white">App User</span>
+                          )}
+                        </div>
                         <p className="text-[13px] text-[#5a413a]">{contact.phone}</p>
                         <div className="mt-1.5 flex gap-1.5 flex-wrap">
                           {contact.isPrimary && (
@@ -600,6 +671,27 @@ export default function ContactsManagerScreen() {
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-[#261814] uppercase tracking-wider">Phone Number</label>
+                <div className="flex gap-2">
+                  <div className="w-16 px-2 py-3 border border-[#e2bfb5] rounded-lg bg-[#fff1ed] text-center text-[14px] text-[#5a413a]">+1</div>
+                  <div className="relative flex-grow">
+                    <input
+                      className="w-full h-full px-4 py-3 border border-[#e2bfb5] rounded-lg focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] outline-none transition-all text-[14px] pr-10"
+                      placeholder="(555) 000-0000"
+                      type="tel"
+                      value={drawerPhone}
+                      onChange={(e) => setDrawerPhone(e.target.value)}
+                    />
+                    {isDesktopLookupLoading && (
+                      <div className="absolute right-3 top-3.5">
+                        <Loader2 className="w-5 h-5 text-[#ac2d00] animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-[12px] font-bold text-[#261814] uppercase tracking-wider">Full Name</label>
                 <input
                   className="w-full px-4 py-3 border border-[#e2bfb5] rounded-lg focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] outline-none transition-all text-[14px]"
@@ -608,20 +700,6 @@ export default function ContactsManagerScreen() {
                   value={drawerFullName}
                   onChange={(e) => setDrawerFullName(e.target.value)}
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-bold text-[#261814] uppercase tracking-wider">Phone Number</label>
-                <div className="flex gap-2">
-                  <div className="w-16 px-2 py-3 border border-[#e2bfb5] rounded-lg bg-[#fff1ed] text-center text-[14px] text-[#5a413a]">+1</div>
-                  <input
-                    className="flex-grow px-4 py-3 border border-[#e2bfb5] rounded-lg focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] outline-none transition-all text-[14px]"
-                    placeholder="(555) 000-0000"
-                    type="tel"
-                    value={drawerPhone}
-                    onChange={(e) => setDrawerPhone(e.target.value)}
-                  />
-                </div>
               </div>
 
               <div className="space-y-1.5">

@@ -39,7 +39,7 @@ export default function ProfileSetupScreen() {
   }
 
   async function handleContinue() {
-    if (fullName.trim().length <= 2) return;
+    if (fullName.trim().length < 2) return;
     setIsLoading(true);
     setErrorMsg(null);
 
@@ -79,7 +79,7 @@ export default function ProfileSetupScreen() {
     }
   }
 
-  const isButtonDisabled = fullName.trim().length <= 2 || isLoading;
+  const isButtonDisabled = fullName.trim().length < 2 || isLoading;
 
   return (
     <div
