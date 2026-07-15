@@ -72,12 +72,23 @@ function isCrossOriginRequest(url: string): boolean {
   }
 }
 
+/**
+ * Development-only logging for API errors.
+ * Logs full technical details only in development mode.
+ * In production, logs are suppressed to prevent leaking sensitive info to users.
+ */
 function logApiFailure(error: ApiError): void {
-  console.error("[useAnchor API]", {
+  if (!import.meta.env.DEV) {
+    // In production, don't log to console to avoid exposure in browser dev tools
+    return;
+  }
+
+  // Development logging - full technical details
+  console.error("[useAnchor API Error]", {
     type: error.type,
     message: error.message,
-    url: error.url,
     endpoint: error.endpoint,
+    url: error.url,
     status: error.status,
     detail: error.detail,
     failedUrls: error.failedUrls,
@@ -87,6 +98,30 @@ function logApiFailure(error: ApiError): void {
     secondaryApi: SECONDARY_API_URL,
     cause: error.raw ?? (error as Error & { cause?: unknown }).cause,
   });
+}
+
+/**
+ * Logs failover attempts in development.
+ * Helps developers understand when and why failover is triggered.
+ */
+function logFailoverAttempt(context: {
+  endpoint: string;
+  primaryUrl: string;
+  error?: string;
+  reason?: string;
+}): void {
+  if (!import.meta.env.DEV) return;
+
+  console.warn(
+    `[useAnchor API] Failover attempt from primary backend`,
+    {
+      endpoint: context.endpoint,
+      primaryUrl: context.primaryUrl,
+      reason: context.reason || "Unknown",
+      error: context.error,
+      timestamp: new Date().toISOString(),
+    }
+  );
 }
 
 /**
@@ -270,13 +305,11 @@ export async function apiFetch<T>(
         // Check if we should failover for this status code
         if (shouldFailover(null, response.status) && baseUrl === backends[0]) {
           failedUrls.push(url);
-          console.warn(
-            `[useAnchor API] Server error ${response.status} from ${baseUrl}. Attempting failover to secondary backend.`,
-            {
-              endpoint,
-              status: response.status,
-            }
-          );
+          logFailoverAttempt({
+            endpoint,
+            primaryUrl: baseUrl,
+            reason: `Server error ${response.status}`,
+          });
           continue; // Try next backend
         }
 
@@ -318,14 +351,12 @@ export async function apiFetch<T>(
 
       // If this was the primary backend and we should failover, try the next one
       if (shouldFailover(error) && baseUrl === backends[0]) {
-        console.warn(
-          `[useAnchor API] ${error.type} error from primary backend. Attempting failover to secondary backend.`,
-          {
-            endpoint,
-            primaryUrl: baseUrl,
-            error: error.message,
-          }
-        );
+        logFailoverAttempt({
+          endpoint,
+          primaryUrl: baseUrl,
+          reason: `${error.type} error`,
+          error: error.message,
+        });
         continue; // Try next backend
       }
 
