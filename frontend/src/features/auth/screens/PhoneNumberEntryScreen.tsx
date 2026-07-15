@@ -6,7 +6,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { useAuthStore } from "../stores/useAuthStore";
-import { getFriendlyErrorMessage, getErrorDebugInfo } from "../../../lib/errorHelpers";
+import { handleError } from "../../../lib/errorHelpers";
 
 export default function PhoneNumberEntryScreen() {
   const navigate = useNavigate();
@@ -14,7 +14,6 @@ export default function PhoneNumberEntryScreen() {
   const [phoneNumber, setPhoneNumber] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [debugMsg, setDebugMsg] = useState<string | null>(null);
 
   const isLoginMode = window.location.pathname === "/auth/login";
   const mode = isLoginMode ? "login" : "signup";
@@ -35,20 +34,16 @@ export default function PhoneNumberEntryScreen() {
 
     setIsLoading(true);
     setErrorMsg(null);
-    setDebugMsg(null);
 
     try {
       const { error } = await signInWithOtp(phoneNumber);
       if (error) {
-        setErrorMsg(getFriendlyErrorMessage(error, "Failed to send verification code. Please check the number or try again later."));
-        setDebugMsg(getErrorDebugInfo(error));
+        setErrorMsg(handleError(error));
       } else {
         navigate("/auth/verify", { state: { phoneNumber, mode } });
       }
     } catch (err: unknown) {
-      console.error("Sign in OTP error:", err);
-      setErrorMsg(getFriendlyErrorMessage(err, "Unexpected error sending verification code."));
-      setDebugMsg(getErrorDebugInfo(err));
+      setErrorMsg(handleError(err));
     } finally {
       setIsLoading(false);
     }
@@ -129,16 +124,9 @@ export default function PhoneNumberEntryScreen() {
 
             {/* API Error Message */}
             {errorMsg && (
-              <div className="space-y-1">
-                <p className="text-[14px] leading-5 px-1 font-medium" style={{ color: "#ba1a1a" }}>
-                  {errorMsg}
-                </p>
-                {debugMsg && (
-                  <p className="text-[11px] leading-4 px-1 font-mono break-all opacity-80" style={{ color: "#8e7068" }}>
-                    {debugMsg}
-                  </p>
-                )}
-              </div>
+              <p className="text-[14px] leading-5 px-1 font-medium" style={{ color: "#ba1a1a" }}>
+                {errorMsg}
+              </p>
             )}
 
             {/* Privacy Note */}

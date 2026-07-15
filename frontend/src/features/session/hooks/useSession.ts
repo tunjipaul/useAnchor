@@ -30,7 +30,7 @@ export function useSession() {
       const expectedEnd = new Date(baseTime + sessionData.durationMinutes * 60000).toISOString();
 
       // Step 1: Create session
-      const session = await apiFetch<any>("/sessions", {
+      const session = await apiFetch<any>("/api/sessions", {
         method: "POST",
         body: JSON.stringify({
           title: sessionData.title,
@@ -47,14 +47,14 @@ export function useSession() {
 
       // Step 2: Add contacts
       if (selectedContactIds.length > 0) {
-        await apiFetch(`/sessions/${session.id}/contacts`, {
+        await apiFetch(`/api/sessions/${session.id}/contacts`, {
           method: "POST",
           body: JSON.stringify({ contact_ids: selectedContactIds.map(id => parseInt(id)) })
         });
       }
 
       // Step 3: Start session
-      await apiFetch(`/sessions/${session.id}/start`, {
+      await apiFetch(`/api/sessions/${session.id}/start`, {
         method: "POST",
         body: JSON.stringify({ p_session_id: session.id, p_current_version: 1 })
       });
@@ -74,7 +74,7 @@ export function useSession() {
     setError(null);
 
     try {
-      await apiFetch(`/sessions/${sessionId}/complete`, {
+      await apiFetch(`/api/sessions/${sessionId}/complete`, {
         method: "POST",
         body: JSON.stringify({ p_session_id: parseInt(sessionId), p_current_version: currentVersion })
       });
@@ -95,7 +95,7 @@ export function useSession() {
     setError(null);
 
     try {
-      const alert = await apiFetch<any>("/alerts/trigger", {
+      const alert = await apiFetch<any>("/api/alerts/trigger", {
         method: "POST",
         body: JSON.stringify({
           p_session_id: parseInt(sessionId),

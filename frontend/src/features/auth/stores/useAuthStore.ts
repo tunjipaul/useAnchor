@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     try {
-      const profile = await apiFetch<Profile>("/profiles/me");
+      const profile = await apiFetch<Profile>("/api/profiles/me");
       set({ 
         session: { access_token: token }, 
         user: profile, 
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signInWithOtp: async (phone: string) => {
     try {
       console.info("[useAnchor Auth] Sending OTP to", phone);
-      const response = await apiFetch<{ message: string; test_otp?: string }>("/auth/send-otp", {
+      const response = await apiFetch<{ message: string; test_otp?: string }>("/api/auth/send-otp", {
         method: "POST",
         body: JSON.stringify({ phone }),
       });
@@ -82,14 +82,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   verifyOtp: async (phone: string, token: string) => {
     try {
       console.info("[useAnchor Auth] Verifying OTP for", phone);
-      const data = await apiFetch<{ access_token: string }>("/auth/verify-otp", {
+      const data = await apiFetch<{ access_token: string }>("/api/auth/verify-otp", {
         method: "POST",
         body: JSON.stringify({ phone, token }),
       });
 
       localStorage.setItem("useanchor_access_token", data.access_token);
 
-      const profile = await apiFetch<Profile>("/profiles/me", {
+      const profile = await apiFetch<Profile>("/api/profiles/me", {
         headers: { Authorization: `Bearer ${data.access_token}` },
       });
 
@@ -108,7 +108,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   updateProfile: async (updates: Partial<Profile>) => {
     try {
-      const updatedProfile = await apiFetch<Profile>("/profiles/me", {
+      const updatedProfile = await apiFetch<Profile>("/api/profiles/me", {
         method: "PUT",
         body: JSON.stringify(updates),
       });
@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   updateFcmToken: async (token: string) => {
     try {
-      await apiFetch("/profiles/fcm-token", {
+      await apiFetch("/api/profiles/fcm-token", {
         method: "POST",
         body: JSON.stringify({ fcm_token: token }),
       });
@@ -138,7 +138,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     try {
-      await apiFetch("/auth/logout", { method: "POST" });
+      await apiFetch("/api/auth/logout", { method: "POST" });
     } catch (error) {
       console.warn("Logout request failed", error);
     } finally {

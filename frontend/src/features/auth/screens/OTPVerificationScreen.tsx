@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
-import { getFriendlyErrorMessage, getErrorDebugInfo } from "../../../lib/errorHelpers";
+import { handleError } from "../../../lib/errorHelpers";
 
 export default function OTPVerificationScreen() {
   const navigate = useNavigate();
@@ -27,7 +27,6 @@ export default function OTPVerificationScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [debugMsg, setDebugMsg] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Countdown timer for resending OTP
@@ -72,11 +71,9 @@ export default function OTPVerificationScreen() {
     if (!phoneNumber) return;
     setTimeLeft(45);
     setErrorMsg(null);
-    setDebugMsg(null);
     const { error } = await signInWithOtp(phoneNumber);
     if (error) {
-      setErrorMsg(getFriendlyErrorMessage(error, "Failed to resend verification code."));
-      setDebugMsg(getErrorDebugInfo(error));
+      setErrorMsg(handleError(error));
     }
   }
 
@@ -89,13 +86,11 @@ export default function OTPVerificationScreen() {
     setErrorMsg(null);
     setDebugMsg(null);
 
+
     try {
       const { error } = await verifyOtp(phoneNumber, code);
       if (error) {
-        setErrorMsg(getFriendlyErrorMessage(error, "Invalid verification code. Please check and try again."));
-        setDebugMsg(getErrorDebugInfo(error));
-      } else {
-        setIsSuccess(true);
+        setErrorMsg(handleError
 
         // Navigate to correct page based on onboarding status and mode
         setTimeout(() => {
@@ -110,9 +105,7 @@ export default function OTPVerificationScreen() {
     } catch (err: unknown) {
       console.error("Verification error:", err);
       setErrorMsg(getFriendlyErrorMessage(err, "Unexpected verification error."));
-      setDebugMsg(getErrorDebugInfo(err));
-    } finally {
-      setIsLoading(false);
+      setErrorMsg(handleError
     }
   }
 
@@ -199,15 +192,10 @@ export default function OTPVerificationScreen() {
               <p className="text-[14px] leading-5 text-center px-1 font-medium" style={{ color: "#ba1a1a" }}>
                 {errorMsg}
               </p>
-              {debugMsg && (
-                <p className="text-[11px] leading-4 text-center px-1 font-mono break-all opacity-80" style={{ color: "#8e7068" }}>
-                  {debugMsg}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Contextual Links */}
+              {debugMsg && (mb-6">
+              <p className="text-[14px] leading-5 text-center px-1 font-medium" style={{ color: "#ba1a1a" }}>
+                {errorMsg}
+              </p>ntextual Links */}
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-1.5 text-[14px] leading-5" style={{ color: "#5a413a" }}>
               <Clock size={16} style={{ color: "#5a413a" }} />
