@@ -1,13 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
 # --- Auth Schemas ---
 class OTPRequest(BaseModel):
-    phone: str
+    phone: str = Field(..., pattern=r"^\+[1-9]\d{1,14}$")
 
 class OTPVerifyRequest(BaseModel):
-    phone: str
+    phone: str = Field(..., pattern=r"^\+[1-9]\d{1,14}$")
     token: str
 
 class TokenResponse(BaseModel):
@@ -16,7 +16,7 @@ class TokenResponse(BaseModel):
 
 # --- Profile Schemas ---
 class ProfileUpdate(BaseModel):
-    full_name: Optional[str] = None
+    full_name: Optional[str] = Field(None, min_length=2, max_length=50)
     avatar_url: Optional[str] = None
     onboarding_completed: Optional[bool] = None
 
@@ -36,15 +36,15 @@ class ProfileResponse(BaseModel):
 
 # --- Contact Schemas ---
 class ContactCreate(BaseModel):
-    name: str
-    phone_number: str
-    relationship: Optional[str] = None
+    name: str = Field(..., min_length=2, max_length=50)
+    phone_number: str = Field(..., pattern=r"^\+[1-9]\d{1,14}$")
+    relationship: Optional[str] = Field(None, max_length=50)
     is_emergency_contact: bool = False
 
 class ContactUpdate(BaseModel):
-    name: Optional[str] = None
-    phone_number: Optional[str] = None
-    relationship: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=2, max_length=50)
+    phone_number: Optional[str] = Field(None, pattern=r"^\+[1-9]\d{1,14}$")
+    relationship: Optional[str] = Field(None, max_length=50)
     is_emergency_contact: Optional[bool] = None
 
 class ContactOptInRequest(BaseModel):
@@ -59,18 +59,19 @@ class ContactResponse(BaseModel):
     relationship: Optional[str] = None
     is_emergency_contact: bool
     opted_in: bool
+    has_account: bool = False
     
     class Config:
         from_attributes = True
 
 # --- Session Schemas ---
 class SessionCreate(BaseModel):
-    title: str
-    description: Optional[str] = None
-    meet_person: str
-    meet_phone: Optional[str] = None
-    destination_address: Optional[str] = None
-    checkin_interval_minutes: int = 30
+    title: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    meet_person: str = Field(..., min_length=2, max_length=100)
+    meet_phone: Optional[str] = Field(None, pattern=r"^\+[1-9]\d{1,14}$")
+    destination_address: Optional[str] = Field(None, max_length=250)
+    checkin_interval_minutes: int = Field(30, ge=1, le=1440)
     expected_end: datetime
 
 class SessionContactsRequest(BaseModel):

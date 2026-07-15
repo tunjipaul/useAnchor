@@ -57,8 +57,8 @@ export default function SettingsScreen() {
   ];
 
   async function handleSaveChanges() {
-    if (!fullName.trim()) {
-      triggerToast("Full Name cannot be empty.");
+    if (fullName.trim().length < 2) {
+      triggerToast("Full Name must be at least 2 characters.");
       return;
     }
     setIsSaving(true);

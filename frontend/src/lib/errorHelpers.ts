@@ -2,10 +2,22 @@ export function getFriendlyErrorMessage(error: any, fallback: string): string {
   if (!error) return fallback;
   
   let msg = "";
-  if (typeof error === 'string') {
+  if (error && error.data && Array.isArray(error.data.detail)) {
+    const details = error.data.detail;
+    if (details.length > 0 && details[0].msg) {
+      msg = details.map((d: any) => `${d.loc?.[d.loc.length - 1] || 'Field'}: ${d.msg}`).join(", ");
+    } else {
+      msg = JSON.stringify(details);
+    }
+  } else if (typeof error === 'string') {
     msg = error;
   } else if (error && typeof error === 'object') {
     msg = error.message || error.error_description || error.statusText || "";
+    if (msg === "[object Object]") {
+      try {
+        msg = JSON.stringify(error.data || error);
+      } catch (e) {}
+    }
     // If it's a standard Error or has no printable properties, don't stringify empty
     if (!msg && Object.keys(error).length > 0) {
       msg = JSON.stringify(error);
