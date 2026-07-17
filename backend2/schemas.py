@@ -70,6 +70,7 @@ class SessionCreate(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     meet_person: str = Field(..., min_length=2, max_length=100)
     meet_phone: Optional[str] = Field(None, pattern=r"^\+[1-9]\d{1,14}$")
+    meet_person_images: Optional[List[str]] = None
     destination_address: Optional[str] = Field(None, max_length=250)
     checkin_interval_minutes: int = Field(30, ge=1, le=1440)
     expected_end: datetime
@@ -88,6 +89,7 @@ class SessionResponse(BaseModel):
     description: Optional[str] = None
     meet_person: str
     meet_phone: Optional[str] = None
+    meet_person_images: Optional[str] = None # Will return JSON string or List[str] if handled, let's keep it str for DB compatibility without custom getters
     destination_address: Optional[str] = None
     checkin_interval_minutes: int
     starts_at: Optional[datetime] = None
@@ -140,6 +142,17 @@ class AlertResponse(BaseModel):
     resolved_at: Optional[datetime] = None
     resolution_reason: Optional[str] = None
     resolution_details: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class AlertRecipientResponse(BaseModel):
+    id: int
+    alert_id: int
+    contact_id: int
+    is_responding: bool
+    acknowledged_at: Optional[datetime] = None
+    session_contact: Optional[dict] = None
     
     class Config:
         from_attributes = True

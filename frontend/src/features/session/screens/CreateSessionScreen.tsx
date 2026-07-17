@@ -130,6 +130,64 @@ export default function CreateSessionScreen() {
   const [startSessionError, setStartSessionError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [isForceEnding, setIsForceEnding] = useState(false);
+  
+  // Image Upload State
+  const [images, setImages] = useState<{file: File, previewUrl: string, uploadedUrl?: string}[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    if (images.length + files.length > 3) {
+      setStartSessionError("Maximum 3 images allowed.");
+      return;
+    }
+
+    setIsUploadingImages(true);
+    setStartSessionError(null);
+
+    const newImages = [...images];
+    
+    // We upload immediately so the URL is ready.
+    for (const file of files) {
+      const previewUrl = URL.createObjectURL(file);
+      const imgObj = { file, previewUrl, uploadedUrl: undefined as string | undefined };
+      newImages.push(imgObj);
+      // We update state so previews show up instantly
+      setImages([...newImages]);
+      
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/sessions/upload-image`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${useAuthStore.getState().session?.access_token}`
+            },
+            body: formData
+          }
+        );
+        const data = await response.json();
+        if (data.url) {
+          imgObj.uploadedUrl = data.url;
+        }
+      } catch (err) {
+        console.error("Upload failed", err);
+      }
+    }
+    
+    setImages([...newImages]);
+    setIsUploadingImages(false);
+  };
+  
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   async function handleForceEndActiveSession() {
     if (!user) return;
@@ -274,11 +332,16 @@ export default function CreateSessionScreen() {
       const isFuture = selectedDateTime.getTime() > now.getTime() + 10000;
       const startDate = isFuture ? selectedDateTime : undefined;
 
+      const uploadedImageUrls = images
+        .map(img => img.uploadedUrl)
+        .filter((url): url is string => url !== undefined);
+
       const sessionId = await createAndStartSession(
         {
           title,
           meet_person: personName || undefined,
           meet_phone: formattedPhone || undefined,
+          meet_person_images: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
           destination_address: location || undefined,
           destination_lat: lat || undefined,
           destination_lng: lng || undefined,
@@ -381,6 +444,37 @@ export default function CreateSessionScreen() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                       />
+                    </div>
+                  </div>
+
+                  {/* Image Uploader */}
+                  <div className="flex flex-col gap-2 pt-2 text-left">
+                    <label className="text-[12px] font-semibold tracking-wider text-[#5a413a] uppercase">
+                      Photos of Person (Optional)
+                    </label>
+                    <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                      {images.map((img, idx) => (
+                        <div key={idx} className="relative w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-[#e2bfb5] bg-gray-50">
+                          <img src={img.previewUrl} alt="preview" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => removeImage(idx)}
+                            className="absolute -top-1 -right-1 w-5 h-5 bg-[#ba1a1a] text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm"
+                          >
+                            ×
+                          </button>
+                          {img.uploadedUrl === undefined && (
+                            <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                              <Loader2 className="animate-spin text-[#ac2d00]" size={16} />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {images.length < 3 && (
+                        <label className="w-16 h-16 shrink-0 rounded-lg border-2 border-dashed border-[#ac2d00] flex items-center justify-center cursor-pointer hover:bg-[#ffe9e4] transition-colors">
+                          <Plus className="text-[#ac2d00]" size={20} />
+                          <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+                        </label>
+                      )}
                     </div>
                   </div>
 
@@ -604,7 +698,7 @@ export default function CreateSessionScreen() {
                       className="w-full min-h-[120px] p-4 bg-white border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] rounded-lg text-[15px] outline-none resize-none transition-all"
                     />
                     <p className="text-[11px] text-[#5a413a] italic leading-tight">
-                      Notes are only shared with contacts if an alert is triggered.
+                      Your trusted contacts will be notified with session details when you start this session.
                     </p>
                   </div>
                 </div>

@@ -44,6 +44,7 @@ class AnchorSession(Base):
     description = Column(String, nullable=True)
     meet_person = Column(String)
     meet_phone = Column(String, nullable=True)
+    meet_person_images = Column(String, nullable=True) # JSON array of image URLs
     destination_address = Column(String, nullable=True)
     checkin_interval_minutes = Column(Integer, default=30)
     
@@ -77,3 +78,16 @@ class Alert(Base):
     resolved_at = Column(DateTime, nullable=True)
     resolution_reason = Column(String, nullable=True)
     resolution_details = Column(String, nullable=True)
+
+class AlertRecipient(Base):
+    __tablename__ = "alert_recipients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(Integer, ForeignKey("alerts.id"))
+    contact_id = Column(Integer, ForeignKey("trusted_contacts.id"))
+    is_responding = Column(Boolean, default=False)
+    acknowledged_at = Column(DateTime, nullable=True)
+    
+    # Optional relationships to make fetching easier
+    # alert = relationship("Alert")
+    # contact = relationship("TrustedContact")

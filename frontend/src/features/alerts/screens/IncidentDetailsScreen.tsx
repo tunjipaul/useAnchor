@@ -71,7 +71,12 @@ export default function IncidentDetailsScreen() {
   const loadRecipients = async () => {
     if (!id) return;
     try {
-      setRecipients([]);
+      const data = await apiFetch<any[]>(`/alerts/${id}/recipients`);
+      if (data) {
+        setRecipients(data);
+      } else {
+        setRecipients([]);
+      }
     } catch (e) {
       console.error("Error loading recipients", e);
     }
