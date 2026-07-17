@@ -11,6 +11,7 @@ import urllib.request
 import urllib.parse
 import base64
 import os
+import httpx
 import firebase_admin
 from firebase_admin import credentials, messaging
 
@@ -198,18 +199,17 @@ async def alert_notification_worker(alert_id: int, db: Session):
         if twilio_sid and twilio_token and twilio_from and "dummy" not in twilio_sid.lower():
             try:
                 url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
-                data = urllib.parse.urlencode({
-                    "To": contact.phone_number,
-                    "From": twilio_from,
-                    "Body": sms_body
-                }).encode('utf-8')
-                
-                auth_str = f"{twilio_sid}:{twilio_token}"
-                b64_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
-                
-                req = urllib.request.Request(url, data=data)
-                req.add_header("Authorization", f"Basic {b64_auth}")
-                urllib.request.urlopen(req)
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        url,
+                        data={
+                            "To": contact.phone_number,
+                            "From": twilio_from,
+                            "Body": sms_body
+                        },
+                        auth=(twilio_sid, twilio_token)
+                    )
+                    resp.raise_for_status()
                 print(f"[Twilio] Sent SMS to {contact.phone_number}")
             except Exception as e:
                 print(f"[Twilio] ERROR sending SMS to {contact.phone_number}: {e}")
@@ -250,7 +250,8 @@ async def alert_notification_worker(alert_id: int, db: Session):
     )
     
     try:
-        response = messaging.send_each_for_multicast(message)
+        import asyncio
+        response = await asyncio.to_thread(messaging.send_each_for_multicast, message)
         print(f"Successfully sent {response.success_count} messages; {response.failure_count} failed.")
     except Exception as e:
         print(f"Error sending FCM multicast: {e}")
@@ -297,18 +298,17 @@ async def session_start_notification_worker(session_id: int, db: Session):
         if twilio_sid and twilio_token and twilio_from and "dummy" not in twilio_sid.lower():
             try:
                 url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
-                data = urllib.parse.urlencode({
-                    "To": contact.phone_number,
-                    "From": twilio_from,
-                    "Body": sms_body
-                }).encode('utf-8')
-                
-                auth_str = f"{twilio_sid}:{twilio_token}"
-                b64_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
-                
-                req = urllib.request.Request(url, data=data)
-                req.add_header("Authorization", f"Basic {b64_auth}")
-                urllib.request.urlopen(req)
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        url,
+                        data={
+                            "To": contact.phone_number,
+                            "From": twilio_from,
+                            "Body": sms_body
+                        },
+                        auth=(twilio_sid, twilio_token)
+                    )
+                    resp.raise_for_status()
                 print(f"[Twilio] Sent start SMS to {contact.phone_number}")
             except Exception as e:
                 print(f"[Twilio] ERROR sending start SMS to {contact.phone_number}: {e}")
@@ -333,7 +333,8 @@ async def session_start_notification_worker(session_id: int, db: Session):
             tokens=tokens,
         )
         try:
-            response = messaging.send_each_for_multicast(message)
+            import asyncio
+            response = await asyncio.to_thread(messaging.send_each_for_multicast, message)
             print(f"Start Session FCM: {response.success_count} messages sent.")
         except Exception as e:
             print(f"Error sending FCM multicast: {e}")
