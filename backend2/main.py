@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import datetime
 import jwt
 import random
@@ -338,7 +338,7 @@ async def session_start_notification_worker(session_id: int, db: Session):
         except Exception as e:
             print(f"Error sending FCM multicast: {e}")
 
-def check_dead_man_switch():
+async def check_dead_man_switch():
 
     print(f"[{datetime.datetime.utcnow()}] Running dead-man switch check...")
     db = database.SessionLocal()
@@ -380,21 +380,21 @@ def check_dead_man_switch():
                     db.add(new_alert)
                     session.status = "sos"
                     db.commit()
-                    alert_notification_worker(new_alert.id, db)
+                    await alert_notification_worker(new_alert.id, db)
     finally:
         db.close()
 
-scheduler = BackgroundScheduler()
+scheduler = AsyncIOScheduler()
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     logger.info("CORS allowed origins: %s", allowed_origins)
     logger.info("Database URL prefix: %s", os.getenv("DATABASE_URL", "sqlite:///./useanchor.db")[:30])
     scheduler.add_job(check_dead_man_switch, 'interval', minutes=1, next_run_time=datetime.datetime.utcnow())
     scheduler.start()
 
 @app.on_event("shutdown")
-def shutdown_event():
+async def shutdown_event():
     scheduler.shutdown()
 
 
