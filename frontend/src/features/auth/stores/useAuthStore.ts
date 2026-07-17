@@ -19,7 +19,7 @@ interface AuthState {
   isLoading: boolean;
   initialize: () => Promise<void>;
   signInWithOtp: (phone: string) => Promise<{ error: any }>;
-  verifyOtp: (phone: string, token: string) => Promise<{ error: any }>;
+  verifyOtp: (phone: string, token: string) => Promise<{ error: any; is_new_user?: boolean }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
   updateFcmToken: (token: string) => Promise<{ error: any }>;
   logout: () => Promise<{ error: any }>;
@@ -82,7 +82,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   verifyOtp: async (phone: string, token: string) => {
     try {
       console.info("[useAnchor Auth] Verifying OTP for", phone);
-      const data = await apiFetch<{ access_token: string }>("/auth/verify-otp", {
+      const data = await apiFetch<{ access_token: string; is_new_user?: boolean }>("/auth/verify-otp", {
         method: "POST",
         body: JSON.stringify({ phone, token }),
       });
@@ -99,7 +99,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         profile,
       });
 
-      return { error: null };
+      return { error: null, is_new_user: data.is_new_user };
     } catch (error) {
       console.error("[useAnchor Auth] verify-otp failed:", getErrorDebugInfo(error), error);
       return { error };

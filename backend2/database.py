@@ -12,9 +12,9 @@ load_dotenv()
 USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
 
 SQLALCHEMY_DATABASE_URL = (
-    "sqlite:///./useanchor.db"
+    "sqlite:///./useanchor.sqlite3"
     if USE_SQLITE
-    else os.getenv("DATABASE_URL", "sqlite:///./useanchor.db")
+    else os.getenv("DATABASE_URL", "sqlite:///./useanchor.sqlite3")
 )
 
 # If it's SQLite, we need connect_args={"check_same_thread": False}. 

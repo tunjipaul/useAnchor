@@ -13,6 +13,7 @@ class OTPVerifyRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+    is_new_user: bool = False
 
 # --- Profile Schemas ---
 class ProfileUpdate(BaseModel):
