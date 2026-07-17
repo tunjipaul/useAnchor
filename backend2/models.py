@@ -3,6 +3,14 @@ from sqlalchemy.orm import relationship
 import datetime
 from database import Base
 
+class OTPAuth(Base):
+    __tablename__ = "otp_auths"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone = Column(String, unique=True, index=True)
+    otp_code = Column(String)
+    otp_expires_at = Column(DateTime)
+
 class Profile(Base):
     __tablename__ = "profiles"
 

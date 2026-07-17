@@ -121,7 +121,18 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
     except WebSocketDisconnect:
         manager.disconnect(user_id)
 
+def normalize_phone(phone: str) -> str:
+    if not phone:
+        return phone
+    phone = "".join(c for c in phone if c.isdigit() or c == "+")
+    if phone.startswith("0"):
+        phone = "+234" + phone[1:]
+    elif not phone.startswith("+"):
+        phone = "+" + phone
+    return phone
+
 def create_access_token(data: dict):
+
     to_encode = data.copy()
     expire = datetime.datetime.utcnow() + datetime.timedelta(days=7)
     to_encode.update({"exp": expire})
@@ -145,10 +156,20 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return user
 
 # --- Background Workers ---
-async def alert_notification_worker(alert_id: int, db: Session):
+async def alert_notification_worker(alert_id: int, db: Session = None):
     """
     Broadcast alerts to active Websocket connections, send SMS, and send FCM pushes.
     """
+    if db is None:
+        db_session = database.SessionLocal()
+        try:
+            await _alert_notification_worker_impl(alert_id, db_session)
+        finally:
+            db_session.close()
+    else:
+        await _alert_notification_worker_impl(alert_id, db)
+
+async def _alert_notification_worker_impl(alert_id: int, db: Session):
     print(f"[{datetime.datetime.utcnow()}] (Worker) Dispatching notifications for alert {alert_id}...")
     
     # 1. Get the alert and session
@@ -186,7 +207,8 @@ async def alert_notification_worker(alert_id: int, db: Session):
                     "id": alert.id,
                     "session_id": session.id,
                     "trigger_type": alert.trigger_type,
-                    "status": "active"
+                    "status": "active",
+                    "user_name": user_name
                 }
             }
             await manager.send_personal_message(message, profile.id)
@@ -258,7 +280,17 @@ async def alert_notification_worker(alert_id: int, db: Session):
         print(f"Error sending FCM multicast: {e}")
 
 
-async def session_start_notification_worker(session_id: int, db: Session):
+async def session_start_notification_worker(session_id: int, db: Session = None):
+    if db is None:
+        db_session = database.SessionLocal()
+        try:
+            await _session_start_notification_worker_impl(session_id, db_session)
+        finally:
+            db_session.close()
+    else:
+        await _session_start_notification_worker_impl(session_id, db)
+
+async def _session_start_notification_worker_impl(session_id: int, db: Session):
     print(f"[{datetime.datetime.utcnow()}] (Worker) Dispatching start notifications for session {session_id}...")
     session = db.query(models.AnchorSession).filter(models.AnchorSession.id == session_id).first()
     if not session:
@@ -283,12 +315,11 @@ async def session_start_notification_worker(session_id: int, db: Session):
                 "alert": {
                     "session_id": session.id,
                     "trigger_type": "session_start",
-                    "status": "active"
+                    "status": "active",
+                    "user_name": user_name
                 }
             }
-            # send_personal_message is async
-            import asyncio
-            asyncio.create_task(manager.send_personal_message(message, profile.id))
+            await manager.send_personal_message(message, profile.id)
             
         twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
         twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
@@ -339,6 +370,45 @@ async def session_start_notification_worker(session_id: int, db: Session):
             print(f"Start Session FCM: {response.success_count} messages sent.")
         except Exception as e:
             print(f"Error sending FCM multicast: {e}")
+
+async def checkin_completed_notification_worker(checkin_id: int, db: Session = None):
+    if db is None:
+        db_session = database.SessionLocal()
+        try:
+            await _checkin_completed_notification_worker_impl(checkin_id, db_session)
+        finally:
+            db_session.close()
+    else:
+        await _checkin_completed_notification_worker_impl(checkin_id, db)
+
+async def _checkin_completed_notification_worker_impl(checkin_id: int, db: Session):
+    checkin = db.query(models.Checkin).filter(models.Checkin.id == checkin_id).first()
+    if not checkin: return
+    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == checkin.session_id).first()
+    if not session: return
+    user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first()
+    user_name = user.full_name or user.phone if user else "A useAnchor user"
+    
+    session_contacts = db.query(models.SessionContact).filter(models.SessionContact.session_id == session.id).all()
+    if session_contacts:
+        contact_ids = [sc.contact_id for sc in session_contacts]
+        contacts = db.query(models.TrustedContact).filter(models.TrustedContact.id.in_(contact_ids)).all()
+    else:
+        contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
+        
+    for contact in contacts:
+        profile = db.query(models.Profile).filter(models.Profile.phone == contact.phone_number).first()
+        if profile and profile.id in manager.active_connections:
+            message = {
+                "type": "NEW_ALERT",
+                "alert": {
+                    "session_id": session.id,
+                    "trigger_type": "checkin_completed",
+                    "status": "active",
+                    "user_name": user_name
+                }
+            }
+            await manager.send_personal_message(message, profile.id)
 
 async def check_dead_man_switch():
 
@@ -410,23 +480,21 @@ def health_check():
 @app.post("/api/auth/send-otp")
 def send_otp(request: schemas.OTPRequest, db: Session = Depends(database.get_db)):
     try:
-        logger.info("send-otp request for phone=%s", request.phone)
+        phone = normalize_phone(request.phone)
+        logger.info("send-otp request for phone=%s", phone)
 
-        user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
-        if not user:
-            user = models.Profile(phone=request.phone)
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+        otp_auth = db.query(models.OTPAuth).filter(models.OTPAuth.phone == phone).first()
+        if not otp_auth:
+            otp_auth = models.OTPAuth(phone=phone)
+            db.add(otp_auth)
 
         otp = str(random.randint(100000, 999999))
-
-        user.otp_code = otp
-        user.otp_expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
+        otp_auth.otp_code = otp
+        otp_auth.otp_expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
         db.commit()
 
-        logger.info("Generated OTP for %s (returned in response for MVP demo)", request.phone)
-        return {"message": f"OTP sent to {request.phone}", "test_otp": otp}
+        logger.info("Generated OTP for %s (returned in response for MVP demo)", phone)
+        return {"message": f"OTP sent to {phone}", "test_otp": otp}
     except Exception as e:
         logger.exception("send-otp failed for phone=%s: %s", request.phone, e)
         db.rollback()
@@ -438,27 +506,40 @@ def send_otp(request: schemas.OTPRequest, db: Session = Depends(database.get_db)
 @app.post("/api/auth/verify-otp", response_model=schemas.TokenResponse)
 def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(database.get_db)):
     try:
-        logger.info("verify-otp request for phone=%s", request.phone)
+        phone = normalize_phone(request.phone)
+        logger.info("verify-otp request for phone=%s", phone)
 
-        user = db.query(models.Profile).filter(models.Profile.phone == request.phone).first()
+        otp_auth = db.query(models.OTPAuth).filter(models.OTPAuth.phone == phone).first()
 
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found. Please request a new OTP.")
+        if not otp_auth:
+            raise HTTPException(status_code=404, detail="No OTP requested for this number.")
 
-        if not user.otp_code or user.otp_code != request.token:
+        if not otp_auth.otp_code or otp_auth.otp_code != request.token:
             if request.token != "123456":
                 raise HTTPException(status_code=400, detail="Invalid OTP code.")
 
-        if user.otp_expires_at and datetime.datetime.utcnow() > user.otp_expires_at:
+        if otp_auth.otp_expires_at and datetime.datetime.utcnow() > otp_auth.otp_expires_at:
             raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
 
-        user.otp_code = None
-        user.otp_expires_at = None
-        db.commit()
+        # OTP verified successfully!
+        otp_auth.otp_code = None
+        otp_auth.otp_expires_at = None
+        
+        # Check if user exists
+        is_new_user = False
+        user = db.query(models.Profile).filter(models.Profile.phone == phone).first()
+        if not user:
+            is_new_user = True
+            user = models.Profile(phone=phone)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            db.commit()
 
         access_token = create_access_token(data={"sub": str(user.id)})
-        logger.info("verify-otp success for phone=%s user_id=%s", request.phone, user.id)
-        return {"access_token": access_token, "token_type": "bearer"}
+        logger.info("verify-otp success for phone=%s user_id=%s is_new=%s", phone, user.id, is_new_user)
+        return {"access_token": access_token, "token_type": "bearer", "is_new_user": is_new_user}
     except HTTPException:
         raise
     except Exception as e:
@@ -533,6 +614,8 @@ def delete_account(db: Session = Depends(database.get_db), current_user: models.
 @app.post("/api/sessions", response_model=schemas.SessionResponse)
 def create_session(request: schemas.SessionCreate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     session_data = request.dict()
+    if session_data.get("meet_phone"):
+        session_data["meet_phone"] = normalize_phone(session_data["meet_phone"])
     if session_data.get("expected_end") and session_data["expected_end"].tzinfo:
         session_data["expected_end"] = session_data["expected_end"].replace(tzinfo=None)
     new_session = models.AnchorSession(**session_data, user_id=current_user.id, status="draft")
@@ -570,7 +653,7 @@ def start_session(session_id: int, request: schemas.SessionActionRequest, backgr
         db.add(first_checkin)
         
     db.commit()
-    background_tasks.add_task(session_start_notification_worker, session.id, db)
+    background_tasks.add_task(session_start_notification_worker, session.id)
     return {"message": "Session started successfully"}
 
 @app.post("/api/sessions/{session_id}/complete")
@@ -621,6 +704,58 @@ def get_session_details(session_id: int, db: Session = Depends(database.get_db),
 def get_session_checkins(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     return db.query(models.Checkin).filter(models.Checkin.session_id == session_id).order_by(models.Checkin.id).all()
 
+@app.get("/api/sessions/monitoring/active")
+def get_monitoring_sessions(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    # Find all sessions where this user is a trusted contact
+    # First get user's phone number
+    user_phone = normalize_phone(current_user.phone)
+    if not user_phone:
+        return []
+        
+    # Get all trusted contact entries that match this user's phone
+    trusted_contacts = db.query(models.TrustedContact).filter(models.TrustedContact.phone_number == user_phone).all()
+    if not trusted_contacts:
+        return []
+        
+    # The session could either explicitly link to this contact via SessionContact
+    # Or implicitly if SessionContact is empty for that session
+    contact_ids = [tc.id for tc in trusted_contacts]
+    contact_user_ids = list(set([tc.user_id for tc in trusted_contacts]))
+    
+    # Active sessions of those users
+    potential_sessions = db.query(models.AnchorSession).filter(
+        models.AnchorSession.user_id.in_(contact_user_ids),
+        models.AnchorSession.status.in_(["active", "sos", "emergency"])
+    ).all()
+    
+    monitoring = []
+    for session in potential_sessions:
+        # Check if session has specific contacts
+        session_contacts = db.query(models.SessionContact).filter(models.SessionContact.session_id == session.id).all()
+        is_included = False
+        if session_contacts:
+            sc_ids = [sc.contact_id for sc in session_contacts]
+            if any(cid in sc_ids for cid in contact_ids):
+                is_included = True
+        else:
+            is_included = True
+            
+        if is_included:
+            owner = db.query(models.Profile).filter(models.Profile.id == session.user_id).first()
+            monitoring.append({
+                "id": session.id,
+                "title": session.title,
+                "status": session.status,
+                "starts_at": session.starts_at,
+                "expected_end": session.expected_end,
+                "user_name": owner.full_name or owner.phone if owner else "Unknown User",
+                "user_avatar": owner.avatar_url if owner else None,
+                "meet_person": session.meet_person,
+                "meet_location": session.destination_address
+            })
+            
+    return monitoring
+
 @app.get("/api/sessions/{session_id}/alerts")
 def get_session_alerts(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     return db.query(models.Alert).filter(models.Alert.session_id == session_id).order_by(models.Alert.triggered_at).all()
@@ -640,7 +775,7 @@ def delete_session(session_id: int, db: Session = Depends(database.get_db), curr
 # 4. Check-ins
 # ==========================================
 @app.post("/api/checkins/{checkin_id}/complete")
-def complete_checkin(checkin_id: int, request: schemas.CheckinCompleteRequest, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+def complete_checkin(checkin_id: int, request: schemas.CheckinCompleteRequest, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     checkin = db.query(models.Checkin).filter(models.Checkin.id == checkin_id).first()
     if not checkin:
         raise HTTPException(status_code=404, detail="Check-in not found")
@@ -659,6 +794,7 @@ def complete_checkin(checkin_id: int, request: schemas.CheckinCompleteRequest, d
             db.add(next_checkin)
             
     db.commit()
+    background_tasks.add_task(checkin_completed_notification_worker, checkin.id)
     return {"message": "Check-in marked as completed"}
 
 
@@ -685,7 +821,7 @@ def trigger_alert(request: schemas.AlertTriggerRequest, background_tasks: Backgr
     db.refresh(new_alert)
     
     # Trigger background worker for push notifications
-    background_tasks.add_task(alert_notification_worker, new_alert.id, db)
+    background_tasks.add_task(alert_notification_worker, new_alert.id)
     
     return {"message": "SOS alert triggered", "alert_id": new_alert.id}
 
@@ -807,7 +943,10 @@ def get_contact(contact_id: int, db: Session = Depends(database.get_db), current
 
 @app.post("/api/contacts", response_model=schemas.ContactResponse)
 def create_contact(request: schemas.ContactCreate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    new_contact = models.TrustedContact(**request.dict(), user_id=current_user.id)
+    contact_data = request.dict()
+    if contact_data.get("phone_number"):
+        contact_data["phone_number"] = normalize_phone(contact_data["phone_number"])
+    new_contact = models.TrustedContact(**contact_data, user_id=current_user.id)
     db.add(new_contact)
     db.commit()
     db.refresh(new_contact)
@@ -820,7 +959,7 @@ def update_contact(contact_id: int, request: schemas.ContactUpdate, db: Session 
         raise HTTPException(status_code=404, detail="Contact not found")
         
     if request.name is not None: contact.name = request.name
-    if request.phone_number is not None: contact.phone_number = request.phone_number
+    if request.phone_number is not None: contact.phone_number = normalize_phone(request.phone_number)
     if request.relationship is not None: contact.relationship = request.relationship
     if request.is_emergency_contact is not None: contact.is_emergency_contact = request.is_emergency_contact
     

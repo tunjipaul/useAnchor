@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Activity, Users, Settings, Bell } from "lucide-react";
+import { Home, Activity, Users, Settings, Bell, Eye } from "lucide-react";
 
 export default function MobileBottomNav() {
   const navigate = useNavigate();
@@ -40,6 +40,17 @@ export default function MobileBottomNav() {
           className={`text-[10px] mt-1 ${currentPath === "/contacts" ? "font-bold" : "font-medium"}`}
         >
           Contacts
+        </span>
+      </button>
+      <button
+        onClick={() => navigate("/monitoring")}
+        className={`flex flex-col items-center justify-center w-full h-full ${currentPath.includes("/monitoring") ? "text-[#ac2d00]" : "text-[#5a413a]"}`}
+      >
+        <Eye size={24} />
+        <span
+          className={`text-[10px] mt-1 ${currentPath.includes("/monitoring") ? "font-bold" : "font-medium"}`}
+        >
+          Monitor
         </span>
       </button>
       <button

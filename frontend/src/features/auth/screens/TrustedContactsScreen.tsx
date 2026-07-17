@@ -38,7 +38,7 @@ export default function TrustedContactsScreen() {
   useEffect(() => {
     async function lookupPhone() {
       if (!newPhone.trim()) return;
-      const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim());
+      const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim(), "NG");
       if (phoneNumberObj && phoneNumberObj.isValid()) {
         try {
           setIsLookupLoading(true);
@@ -103,10 +103,10 @@ export default function TrustedContactsScreen() {
       return;
     }
 
-    // Validate phone number format
-    const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim());
+    // Validate phone number format (allow both international and local Nigerian formats)
+    const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim(), "NG");
     if (!phoneNumberObj || !phoneNumberObj.isValid()) {
-      setFormError("Please enter a valid phone number in international format (e.g. +234...).");
+      setFormError("Please enter a valid phone number (e.g. 080... or +234...).");
       return;
     }
 
@@ -239,7 +239,7 @@ export default function TrustedContactsScreen() {
                   <div className="relative">
                     <input
                       type="tel"
-                      placeholder="Phone Number (e.g. +234...)"
+                      placeholder="Phone Number (e.g. 080... or +234...)"
                       value={newPhone}
                       onChange={(e) => setNewPhone(e.target.value)}
                       className="w-full h-10 px-3 pr-10 rounded-lg border border-[#e2bfb5] text-[14px] focus:outline-none focus:border-[#ac2d00]"

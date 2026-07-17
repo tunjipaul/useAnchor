@@ -8,14 +8,13 @@ import { handleError } from "../../../lib/errorHelpers";
 export default function OTPVerificationScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { phoneNumber?: string; mode?: "login" | "signup" } | undefined;
+  const state = location.state as { phoneNumber?: string } | undefined;
   const phoneNumber = state?.phoneNumber;
-  const mode = state?.mode ?? "signup";
 
   // If we somehow arrived here without a phone number, send back to phone entry
   useEffect(() => {
     if (!phoneNumber) {
-      navigate(mode === "login" ? "/auth/login" : "/auth/signup", { replace: true });
+      navigate("/auth/continue", { replace: true });
     }
   }, [phoneNumber, navigate]);
 
@@ -86,15 +85,15 @@ export default function OTPVerificationScreen() {
     setErrorMsg(null);
 
     try {
-      const { error } = await verifyOtp(phoneNumber, code);
+      const { error, is_new_user } = await verifyOtp(phoneNumber, code);
       if (error) {
         setErrorMsg(handleError(error));
       } else {
         setIsSuccess(true);
-        // Navigate to correct page based on onboarding status and mode
+        // Navigate to correct page based on onboarding status and is_new_user flag
         setTimeout(() => {
           const profile = useAuthStore.getState().profile;
-          if (mode === "login" || profile?.onboarding_completed) {
+          if (!is_new_user && profile?.onboarding_completed) {
             navigate("/dashboard");
           } else {
             navigate("/auth/profile-setup");
@@ -119,7 +118,7 @@ export default function OTPVerificationScreen() {
         {/* Top Navigation */}
         <header className="w-full flex items-center justify-between px-2">
           <button
-            onClick={() => navigate(mode === "login" ? "/auth/login" : "/auth/signup")}
+            onClick={() => navigate("/auth/continue")}
             aria-label="Go back"
             className="w-10 h-10 flex items-center justify-center rounded-full active:scale-95 transition-transform hover:bg-[#ffe9e4]"
             style={{ color: "#261814" }}
@@ -216,7 +215,7 @@ export default function OTPVerificationScreen() {
             
             <button
               type="button"
-              onClick={() => navigate(mode === "login" ? "/auth/login" : "/auth/signup")}
+              onClick={() => navigate("/auth/continue")}
               className="text-[14px] font-semibold text-[#ac2d00] hover:underline underline-offset-4 active:opacity-75 transition-all"
             >
               Change Phone Number

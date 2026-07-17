@@ -59,7 +59,7 @@ export default function ContactsManagerScreen() {
   useEffect(() => {
     async function lookupPhone() {
       if (!newPhone.trim() || selectedContactId) return;
-      const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim(), "US");
+      const phoneNumberObj = parsePhoneNumberFromString(newPhone.trim(), "NG");
       if (phoneNumberObj && phoneNumberObj.isValid()) {
         try {
           setIsMobileLookupLoading(true);
@@ -85,7 +85,7 @@ export default function ContactsManagerScreen() {
   useEffect(() => {
     async function lookupPhone() {
       if (!drawerPhone.trim() || selectedContactId) return;
-      const phoneNumberObj = parsePhoneNumberFromString(drawerPhone.trim(), "US");
+      const phoneNumberObj = parsePhoneNumberFromString(drawerPhone.trim(), "NG");
       if (phoneNumberObj && phoneNumberObj.isValid()) {
         try {
           setIsDesktopLookupLoading(true);
@@ -166,10 +166,10 @@ export default function ContactsManagerScreen() {
       return;
     }
 
-    // Validate phone (fall back to US country code if local format is provided)
-    const phoneObj = parsePhoneNumberFromString(newPhone.trim(), "US");
+    // Validate phone (fall back to NG country code if local format is provided)
+    const phoneObj = parsePhoneNumberFromString(newPhone.trim(), "NG");
     if (!phoneObj || !phoneObj.isValid()) {
-      setModalError("Please enter a valid phone number in international format (e.g. +234...).");
+      setModalError("Please enter a valid phone number (e.g. 080... or +234...).");
       return;
     }
     const formattedPhone = phoneObj.number;
@@ -245,10 +245,10 @@ export default function ContactsManagerScreen() {
       return;
     }
 
-    // Validate phone (fall back to US country code if local format is provided)
-    const phoneObj = parsePhoneNumberFromString(drawerPhone.trim(), "US");
+    // Validate phone (fall back to NG country code if local format is provided)
+    const phoneObj = parsePhoneNumberFromString(drawerPhone.trim(), "NG");
     if (!phoneObj || !phoneObj.isValid()) {
-      setDrawerError("Please enter a valid phone number in international format (e.g. +234...).");
+      setDrawerError("Please enter a valid phone number (e.g. 080... or +234...).");
       return;
     }
     const formattedPhone = phoneObj.number;
@@ -479,7 +479,7 @@ export default function ContactsManagerScreen() {
                 <div>
                   <label className="block text-[12px] font-bold uppercase tracking-wider text-[#5a413a] mb-1">Phone Number <span className="text-[#ac2d00]">*</span></label>
                   <div className="relative">
-                    <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full h-12 px-3 border border-[#e2bfb5] rounded-lg focus:ring-1 focus:ring-[#ac2d00] focus:border-[#ac2d00] outline-none pr-10" />
+                    <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="e.g. 080... or +234..." className="w-full h-12 px-3 border border-[#e2bfb5] rounded-lg focus:ring-1 focus:ring-[#ac2d00] focus:border-[#ac2d00] outline-none pr-10" />
                     {isMobileLookupLoading && (
                       <div className="absolute right-3 top-3.5">
                         <Loader2 className="w-5 h-5 text-[#ac2d00] animate-spin" />
@@ -673,11 +673,10 @@ export default function ContactsManagerScreen() {
               <div className="space-y-1.5">
                 <label className="text-[12px] font-bold text-[#261814] uppercase tracking-wider">Phone Number</label>
                 <div className="flex gap-2">
-                  <div className="w-16 px-2 py-3 border border-[#e2bfb5] rounded-lg bg-[#fff1ed] text-center text-[14px] text-[#5a413a]">+1</div>
                   <div className="relative flex-grow">
                     <input
                       className="w-full h-full px-4 py-3 border border-[#e2bfb5] rounded-lg focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] outline-none transition-all text-[14px] pr-10"
-                      placeholder="(555) 000-0000"
+                      placeholder="e.g. 080... or +234..."
                       type="tel"
                       value={drawerPhone}
                       onChange={(e) => setDrawerPhone(e.target.value)}

@@ -15,9 +15,6 @@ export default function PhoneNumberEntryScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const isLoginMode = window.location.pathname === "/auth/login";
-  const mode = isLoginMode ? "login" : "signup";
-
   // Validate the phone number using libphonenumber-js
   const phoneNumberObj = phoneNumber ? parsePhoneNumberFromString(phoneNumber) : null;
   const isValid = phoneNumberObj ? phoneNumberObj.isValid() : false;
@@ -40,7 +37,7 @@ export default function PhoneNumberEntryScreen() {
       if (error) {
         setErrorMsg(handleError(error));
       } else {
-        navigate("/auth/verify", { state: { phoneNumber, mode } });
+        navigate("/auth/verify", { state: { phoneNumber } });
       }
     } catch (err: unknown) {
       setErrorMsg(handleError(err));
@@ -92,13 +89,13 @@ export default function PhoneNumberEntryScreen() {
               className="text-[28px] font-semibold leading-[33.6px] mb-2"
               style={{ color: "#261814" }}
             >
-              {isLoginMode ? "Welcome back!" : "What's your number?"}
+              What's your number?
             </h1>
             <p
               className="text-[16px] leading-[25.6px]"
               style={{ color: "#5a413a" }}
             >
-              {isLoginMode ? "Enter your phone number to log in." : "We'll send you a one-time code to verify your identity."}
+              We'll send you a one-time code to verify your identity.
             </p>
           </div>
 
@@ -171,34 +168,6 @@ export default function PhoneNumberEntryScreen() {
 
           {/* Contextual Help */}
           <div className="mt-6 flex flex-col items-center gap-3">
-            <p className="text-[14px] leading-5 text-center" style={{ color: "#5a413a" }}>
-              {isLoginMode ? (
-                <>
-                  Don't have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/auth/signup")}
-                    className="underline font-semibold hover:text-[#ac2d00]"
-                    style={{ color: "#ac2d00" }}
-                  >
-                    Sign Up
-                  </button>
-                </>
-              ) : (
-                <>
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/auth/login")}
-                    className="underline font-semibold hover:text-[#ac2d00]"
-                    style={{ color: "#ac2d00" }}
-                  >
-                    Log In
-                  </button>
-                </>
-              )}
-            </p>
-
             <p className="text-center text-[12px] leading-4" style={{ color: "#8e7068" }}>
               By tapping "Send Code", you agree to our{" "}
               <a href="#" className="underline hover:text-[#ac2d00]" style={{ color: "#ac2d00" }}>

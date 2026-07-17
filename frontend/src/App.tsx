@@ -22,6 +22,7 @@ import SessionTimelineScreen from "./features/session/screens/SessionTimelineScr
 import SOSActivatedScreen from "./features/session/screens/SOSActivatedScreen";
 import SessionSummaryScreen from "./features/session/screens/SessionSummaryScreen";
 import SessionHistoryScreen from "./features/session/screens/SessionHistoryScreen";
+import MonitoringScreen from "./features/session/screens/MonitoringScreen";
 
 // Feature: contacts
 import ContactsManagerScreen from "./features/contacts/screens/ContactsManagerScreen";
@@ -73,8 +74,7 @@ export default function App() {
       <Routes>
         {/* Auth */}
         <Route path="/" element={<OnboardingScreen />} />
-        <Route path="/auth/signup" element={<PhoneNumberEntryScreen />} />
-        <Route path="/auth/login" element={<PhoneNumberEntryScreen />} />
+        <Route path="/auth/continue" element={<PhoneNumberEntryScreen />} />
         <Route path="/auth/verify" element={<OTPVerificationScreen />} />
         <Route path="/auth/profile-setup" element={<ProfileSetupScreen />} />
         <Route path="/auth/trusted-contacts" element={<TrustedContactsScreen />} />
@@ -91,6 +91,7 @@ export default function App() {
           <Route path="/session/timeline/:id" element={<SessionTimelineScreen />} />
           <Route path="/session/history" element={<SessionHistoryScreen />} />
           <Route path="/session/sos" element={<SOSActivatedScreen />} />
+          <Route path="/monitoring" element={<MonitoringScreen />} />
 
           {/* Contacts */}
           <Route path="/contacts" element={<ContactsManagerScreen />} />

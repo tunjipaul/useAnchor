@@ -108,7 +108,7 @@ export default function CreateSessionScreen() {
   useEffect(() => {
     async function lookupPhone() {
       if (!newContactPhone.trim()) return;
-      const phoneNumberObj = parsePhoneNumberFromString(newContactPhone.trim(), "US");
+      const phoneNumberObj = parsePhoneNumberFromString(newContactPhone.trim(), "NG");
       if (phoneNumberObj && phoneNumberObj.isValid()) {
         try {
           setIsLookupLoading(true);
@@ -212,9 +212,9 @@ export default function CreateSessionScreen() {
     setAddContactError(null);
 
     // Validate phone number using libphonenumber-js
-    const phoneObj = parsePhoneNumberFromString(newContactPhone.trim(), "US");
+    const phoneObj = parsePhoneNumberFromString(newContactPhone.trim(), "NG");
     if (!phoneObj || !phoneObj.isValid()) {
-      setAddContactError("Please enter a valid phone number in international format (e.g. +234...).");
+      setAddContactError("Please enter a valid phone number (e.g. 080... or +234...).");
       return;
     }
     const formattedPhone = phoneObj.number;
@@ -256,7 +256,7 @@ export default function CreateSessionScreen() {
       
       let formattedPhone = phone;
       if (phone.trim()) {
-        const phoneObj = parsePhoneNumberFromString(phone.trim(), "US");
+        const phoneObj = parsePhoneNumberFromString(phone.trim(), "NG");
         if (phoneObj && phoneObj.isValid()) {
           formattedPhone = phoneObj.number;
         } else {
@@ -376,7 +376,7 @@ export default function CreateSessionScreen() {
                       </label>
                       <input
                         className="w-full h-12 px-4 bg-white border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] rounded-lg text-[16px] outline-none transition-all"
-                        placeholder="e.g. +234..."
+                        placeholder="e.g. 080... or +234..."
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
@@ -558,7 +558,7 @@ export default function CreateSessionScreen() {
                           <div className="relative">
                             <input
                               type="tel"
-                              placeholder="Phone Number (e.g. +1...)"
+                              placeholder="Phone Number (e.g. 080... or +234...)"
                               value={newContactPhone}
                               onChange={(e) => setNewContactPhone(e.target.value)}
                               className="w-full h-10 px-3 pr-10 rounded-lg border border-[#e2bfb5] focus:border-[#ac2d00] focus:ring-1 focus:ring-[#ac2d00] text-[14px] outline-none"

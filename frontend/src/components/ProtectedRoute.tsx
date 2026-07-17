@@ -1,6 +1,8 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "../features/auth/stores/useAuthStore";
 import { Loader2 } from "lucide-react";
+import GlobalWebSocket from "./GlobalWebSocket";
+import GlobalAlertModal from "./GlobalAlertModal";
 
 export default function ProtectedRoute() {
   const { user, isLoading } = useAuthStore();
@@ -17,5 +19,11 @@ export default function ProtectedRoute() {
     return <Navigate to="/auth/login" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <GlobalWebSocket />
+      <GlobalAlertModal />
+      <Outlet />
+    </>
+  );
 }
