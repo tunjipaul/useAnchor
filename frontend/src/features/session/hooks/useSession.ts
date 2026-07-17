@@ -12,7 +12,6 @@ export function useSession() {
       title: string;
       meet_person?: string;
       meet_phone?: string;
-      meet_person_images?: string[];
       destination_address?: string;
       destination_lat?: number;
       destination_lng?: number;
@@ -38,7 +37,6 @@ export function useSession() {
           description: sessionData.notes || null,
           meet_person: sessionData.meet_person || "Unknown",
           meet_phone: sessionData.meet_phone || null,
-          meet_person_images: sessionData.meet_person_images || null,
           destination_address: sessionData.destination_address || null,
           // Calculate a sensible check-in interval: 
           // If duration is < 15, interval = duration. Otherwise 15.

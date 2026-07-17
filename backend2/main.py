@@ -6,7 +6,6 @@ import datetime
 import jwt
 import random
 import logging
-import asyncio
 import database, models, schemas
 import urllib.request
 import urllib.parse
@@ -104,11 +103,10 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket, token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id_str = payload.get("sub")
-        if user_id_str is None:
+        user_id = payload.get("user_id")
+        if user_id is None:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-        user_id = int(user_id_str)
     except jwt.PyJWTError:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
@@ -175,21 +173,6 @@ async def alert_notification_worker(alert_id: int, db: Session):
         # Fallback to all trusted contacts if none were selected for the session
         print("No specific contacts chosen for session, falling back to all trusted contacts.")
         contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
-        
-    # Create AlertRecipient records for all contacts
-    for contact in contacts:
-        # Check if already exists to prevent duplicates on retry
-        existing = db.query(models.AlertRecipient).filter(
-            models.AlertRecipient.alert_id == alert.id,
-            models.AlertRecipient.contact_id == contact.id
-        ).first()
-        if not existing:
-            recipient = models.AlertRecipient(
-                alert_id=alert.id,
-                contact_id=contact.id
-            )
-            db.add(recipient)
-    db.commit()
     
     # WebSocket and SMS notifications
     for contact in contacts:
@@ -255,7 +238,7 @@ async def alert_notification_worker(alert_id: int, db: Session):
     
     message = messaging.MulticastMessage(
         notification=messaging.Notification(
-            title=f"\U0001f6a8 Emergency Alert from {user_name}",
+            title=f"🚨 Emergency Alert from {user_name}",
             body=f"{user_name} has {reason} Open useAnchor to view their location.",
         ),
         data={
@@ -274,68 +257,43 @@ async def alert_notification_worker(alert_id: int, db: Session):
 
 
 async def session_start_notification_worker(session_id: int, db: Session):
-    """
-    Notify trusted contacts when a session is started (proactive heads-up).
-    Sends SMS and FCM push so contacts are already on alert.
-    """
-    print(f"[{datetime.datetime.utcnow()}] (Worker) Sending session-start notifications for session {session_id}...")
-
+    print(f"[{datetime.datetime.utcnow()}] (Worker) Dispatching start notifications for session {session_id}...")
     session = db.query(models.AnchorSession).filter(models.AnchorSession.id == session_id).first()
     if not session:
-        print("Session not found for start notification.")
         return
-
+        
     user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first()
     user_name = user.full_name or user.phone if user else "A useAnchor user"
 
-    # Get trusted contacts selected for this session
     session_contacts = db.query(models.SessionContact).filter(models.SessionContact.session_id == session.id).all()
-
     if session_contacts:
         contact_ids = [sc.contact_id for sc in session_contacts]
         contacts = db.query(models.TrustedContact).filter(models.TrustedContact.id.in_(contact_ids)).all()
     else:
-        print("No contacts chosen for session, falling back to all trusted contacts.")
         contacts = db.query(models.TrustedContact).filter(models.TrustedContact.user_id == session.user_id).all()
-
-    if not contacts:
-        print("No trusted contacts found. Skipping session-start notifications.")
-        return
-
-    # Build the notification message
-    location_info = session.destination_address or "an unspecified location"
-    end_time = session.expected_end.strftime("%I:%M %p") if session.expected_end else "an unspecified time"
-    sms_body = (
-        f"useAnchor Alert: {user_name} is starting a safety session. "
-        f"Meeting: {session.meet_person or 'someone'}. "
-        f"Location: {location_info}. "
-        f"Expected to finish by {end_time}. "
-        f"Stay alert \u2014 you'll be notified if they need help."
-    )
-
-    # Send SMS and WebSocket to each contact
+    
+    # WebSocket and SMS notifications
     for contact in contacts:
-        # WebSocket notification
         profile = db.query(models.Profile).filter(models.Profile.phone == contact.phone_number).first()
         if profile and profile.id in manager.active_connections:
-            ws_message = {
-                "type": "SESSION_STARTED",
-                "session": {
-                    "id": session.id,
-                    "title": session.title,
-                    "meet_person": session.meet_person,
-                    "destination_address": session.destination_address,
-                    "expected_end": session.expected_end.isoformat() + "Z" if session.expected_end else None,
-                    "user_name": user_name,
+            message = {
+                "type": "NEW_ALERT",
+                "alert": {
+                    "session_id": session.id,
+                    "trigger_type": "session_start",
+                    "status": "active"
                 }
             }
-            await manager.send_personal_message(ws_message, profile.id)
-
-        # SMS notification
+            # send_personal_message is async
+            import asyncio
+            asyncio.create_task(manager.send_personal_message(message, profile.id))
+            
         twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
         twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
         twilio_from = os.getenv("TWILIO_FROM_NUMBER")
-
+        
+        sms_body = f"useAnchor: {user_name} has started a new safety session ('{session.title}') and added you as a trusted contact."
+        
         if twilio_sid and twilio_token and twilio_from and "dummy" not in twilio_sid.lower():
             try:
                 url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
@@ -344,56 +302,44 @@ async def session_start_notification_worker(session_id: int, db: Session):
                     "From": twilio_from,
                     "Body": sms_body
                 }).encode('utf-8')
-
+                
                 auth_str = f"{twilio_sid}:{twilio_token}"
                 b64_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
-
+                
                 req = urllib.request.Request(url, data=data)
                 req.add_header("Authorization", f"Basic {b64_auth}")
                 urllib.request.urlopen(req)
-                print(f"[Twilio] Sent session-start SMS to {contact.phone_number}")
+                print(f"[Twilio] Sent start SMS to {contact.phone_number}")
             except Exception as e:
-                print(f"[Twilio] ERROR sending session-start SMS to {contact.phone_number}: {e}")
-                print(f"\n[FALLBACK SMS TERMINAL OUTPUT]\nTo: {contact.phone_number}\nMessage: {sms_body}\n")
-        else:
-            print(f"\n--- [MOCKED SMS - SESSION START] ---")
-            print(f"To: {contact.phone_number}")
-            print(f"Message: {sms_body}")
-            print(f"------------------------------------\n")
-
-    # Send FCM push notifications
+                print(f"[Twilio] ERROR sending start SMS to {contact.phone_number}: {e}")
+                
     contact_phones = [c.phone_number for c in contacts]
     contact_profiles = db.query(models.Profile).filter(
         models.Profile.phone.in_(contact_phones),
         models.Profile.fcm_token.isnot(None)
     ).all()
-
+    
     tokens = [p.fcm_token for p in contact_profiles]
-
-    if not tokens:
-        print(f"No FCM tokens found for session-start notification of session {session_id}")
-        return
-
-    fcm_message = messaging.MulticastMessage(
-        notification=messaging.Notification(
-            title=f"\U0001f4cd {user_name} started a safety session",
-            body=f"Meeting {session.meet_person or 'someone'} at {location_info}. Expected done by {end_time}.",
-        ),
-        data={
-            "sessionId": str(session.id),
-            "type": "session_started"
-        },
-        tokens=tokens,
-    )
-
-    try:
-        response = messaging.send_each_for_multicast(fcm_message)
-        print(f"Session-start FCM: {response.success_count} sent, {response.failure_count} failed.")
-    except Exception as e:
-        print(f"Error sending session-start FCM: {e}")
-
+    if tokens:
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(
+                title=f"Anchor Created by {user_name}",
+                body=f"{user_name} started a new safety session: {session.title}",
+            ),
+            data={
+                "sessionId": str(session.id),
+                "type": "session_start"
+            },
+            tokens=tokens,
+        )
+        try:
+            response = messaging.send_each_for_multicast(message)
+            print(f"Start Session FCM: {response.success_count} messages sent.")
+        except Exception as e:
+            print(f"Error sending FCM multicast: {e}")
 
 def check_dead_man_switch():
+
     print(f"[{datetime.datetime.utcnow()}] Running dead-man switch check...")
     db = database.SessionLocal()
     try:
@@ -434,7 +380,7 @@ def check_dead_man_switch():
                     db.add(new_alert)
                     session.status = "sos"
                     db.commit()
-                    asyncio.run(alert_notification_worker(new_alert.id, db))
+                    alert_notification_worker(new_alert.id, db)
     finally:
         db.close()
 
@@ -532,7 +478,6 @@ def logout(current_user: models.Profile = Depends(get_current_user)):
 @app.get("/api/profiles/me", response_model=schemas.ProfileResponse)
 def get_profile(current_user: models.Profile = Depends(get_current_user)):
     return current_user
-
 @app.get("/api/profiles/lookup")
 def lookup_profile(phone: str, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     profile = db.query(models.Profile).filter(models.Profile.phone == phone).first()
@@ -575,63 +520,19 @@ def update_fcm_token(request: schemas.FCMTokenUpdate, db: Session = Depends(data
 
 @app.delete("/api/profiles/account")
 def delete_account(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    user_id = current_user.id
-
-    # 1. Get all session IDs belonging to this user
-    session_ids = [s.id for s in db.query(models.AnchorSession.id).filter(models.AnchorSession.user_id == user_id).all()]
-
-    if session_ids:
-        # 2. Delete alerts tied to those sessions
-        db.query(models.Alert).filter(models.Alert.session_id.in_(session_ids)).delete(synchronize_session=False)
-
-        # 3. Delete checkins tied to those sessions
-        db.query(models.Checkin).filter(models.Checkin.session_id.in_(session_ids)).delete(synchronize_session=False)
-
-        # 4. Delete session_contacts tied to those sessions
-        db.query(models.SessionContact).filter(models.SessionContact.session_id.in_(session_ids)).delete(synchronize_session=False)
-
-        # 5. Delete the sessions themselves
-        db.query(models.AnchorSession).filter(models.AnchorSession.user_id == user_id).delete(synchronize_session=False)
-
-    # 6. Delete session_contacts that reference this user's trusted contacts
-    contact_ids = [c.id for c in db.query(models.TrustedContact.id).filter(models.TrustedContact.user_id == user_id).all()]
-    if contact_ids:
-        db.query(models.SessionContact).filter(models.SessionContact.contact_id.in_(contact_ids)).delete(synchronize_session=False)
-
-    # 7. Delete trusted contacts
-    db.query(models.TrustedContact).filter(models.TrustedContact.user_id == user_id).delete(synchronize_session=False)
-
-    # 8. Delete the profile itself
     db.delete(current_user)
     db.commit()
-
     return {"message": "Account deleted"}
 
 
 # ==========================================
 # 3. Safety Sessions
 # ==========================================
-@app.post("/api/sessions/upload-image")
-async def upload_session_image(file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    try:
-        contents = await file.read()
-        result = cloudinary.uploader.upload(contents, folder="useanchor_sessions")
-        return {"url": result.get("secure_url"), "message": "Image uploaded successfully"}
-    except Exception as e:
-        print(f"Cloudinary upload error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to upload image.")
-
 @app.post("/api/sessions", response_model=schemas.SessionResponse)
 def create_session(request: schemas.SessionCreate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     session_data = request.dict()
     if session_data.get("expected_end") and session_data["expected_end"].tzinfo:
         session_data["expected_end"] = session_data["expected_end"].replace(tzinfo=None)
-    
-    # Serialize meet_person_images to JSON string
-    if session_data.get("meet_person_images") is not None:
-        import json
-        session_data["meet_person_images"] = json.dumps(session_data["meet_person_images"])
-
     new_session = models.AnchorSession(**session_data, user_id=current_user.id, status="draft")
     db.add(new_session)
     db.commit()
@@ -667,10 +568,7 @@ def start_session(session_id: int, request: schemas.SessionActionRequest, backgr
         db.add(first_checkin)
         
     db.commit()
-    
-    # Notify trusted contacts that the session has started
     background_tasks.add_task(session_start_notification_worker, session.id, db)
-    
     return {"message": "Session started successfully"}
 
 @app.post("/api/sessions/{session_id}/complete")
@@ -853,19 +751,6 @@ def get_alerts(db: Session = Depends(database.get_db), current_user: models.Prof
             },
             "resolvedAt": alert.resolved_at.isoformat() + "Z" if alert.resolved_at else None
         })
-        
-    return response
-
-@app.get("/api/alerts/{alert_id}/recipients", response_model=list[schemas.AlertRecipientResponse])
-def get_alert_recipients(alert_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    recipients = db.query(models.AlertRecipient).filter(models.AlertRecipient.alert_id == alert_id).all()
-    
-    response = []
-    for rec in recipients:
-        contact = db.query(models.TrustedContact).filter(models.TrustedContact.id == rec.contact_id).first()
-        rec_data = schemas.AlertRecipientResponse.from_orm(rec).dict()
-        rec_data["session_contact"] = {"name": contact.name, "phone_number": contact.phone_number} if contact else None
-        response.append(rec_data)
         
     return response
 

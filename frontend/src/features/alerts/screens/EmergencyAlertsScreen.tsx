@@ -11,7 +11,7 @@ import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { apiFetch } from "../../../lib/api";
 
 import type { AlertData } from "../utils/alertStore";
-import { useWebSocket } from "../../../providers/WebSocketProvider";
+
 export default function EmergencyAlertsScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -35,17 +35,40 @@ export default function EmergencyAlertsScreen() {
     }
   };
 
-  const { lastMessage } = useWebSocket();
-
   useEffect(() => {
     loadAlerts();
-  }, []);
+    
+    const token = useAuthStore.getState().session?.access_token;
+    if (!token) return;
 
-  useEffect(() => {
-    if (lastMessage?.type === "NEW_ALERT") {
-      loadAlerts(true);
-    }
-  }, [lastMessage]);
+    // Use WebSockets for real-time alerts instead of polling
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // Fallback to localhost:8000 for local dev if API_URL isn't fully absolute
+    const wsHost = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).host : 'localhost:8000';
+    const wsUrl = `${protocol}//${wsHost}/api/ws/alerts?token=${token}`;
+    
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "NEW_ALERT") {
+          // Play sound or show toast here in the future
+          loadAlerts(true);
+        }
+      } catch (err) {
+        console.error("Failed to parse WS message", err);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket Error:", error);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
 
   const filteredAlerts = alerts.filter(alert => {
     // Apply search
