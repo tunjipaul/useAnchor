@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+# pyrefly: ignore [missing-import]
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import datetime
 import jwt
@@ -262,7 +263,7 @@ async def session_start_notification_worker(session_id: int, db: Session):
     session = db.query(models.AnchorSession).filter(models.AnchorSession.id == session_id).first()
     if not session:
         return
-        
+                
     user = db.query(models.Profile).filter(models.Profile.id == session.user_id).first()
     user_name = user.full_name or user.phone if user else "A useAnchor user"
 
