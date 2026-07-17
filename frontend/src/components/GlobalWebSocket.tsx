@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useAuthStore } from "../features/auth/stores/useAuthStore";
-import { toast } from "react-hot-toast";
 
 export default function GlobalWebSocket() {
   const token = useAuthStore((state) => state.session?.access_token);
@@ -26,8 +25,6 @@ export default function GlobalWebSocket() {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "NEW_ALERT") {
-            const alertInfo = data.alert;
-            
             // Dispatch a custom event so other components can refresh their data
             window.dispatchEvent(new CustomEvent("useanchor_new_alert", { detail: data }));
           }

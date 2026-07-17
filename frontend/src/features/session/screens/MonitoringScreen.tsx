@@ -4,7 +4,6 @@ import { Loader2, Search, ArrowLeft, RefreshCw, Activity, CheckCircle, Clock } f
 import DesktopHeader from "../../../components/DesktopHeader";
 import DesktopSidebar from "../../../components/DesktopSidebar";
 import MobileBottomNav from "../../../components/MobileBottomNav";
-import { useAuthStore } from "../../auth/stores/useAuthStore";
 import { apiFetch } from "../../../lib/api";
 
 type MonitoringSession = {
