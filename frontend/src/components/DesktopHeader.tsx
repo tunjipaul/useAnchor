@@ -3,6 +3,7 @@ import { Bell, Search, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../features/auth/stores/useAuthStore";
 import { apiFetch } from "../lib/api";
+import { useLocationStore } from "../features/session/stores/locationStore";
 
 interface DesktopHeaderProps {
   showSearch?: boolean;
@@ -20,6 +21,7 @@ export default function DesktopHeader({
   const navigate = useNavigate();
   const profile = useAuthStore((state) => state.profile);
   const avatarInitial = profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : "U";
+  const getFreshLocation = useLocationStore((s) => s.getFreshLocation);
 
   const [activeAlertsCount, setActiveAlertsCount] = useState(0);
   const [isTriggeringSOS, setIsTriggeringSOS] = useState(false);
@@ -74,14 +76,15 @@ export default function DesktopHeader({
         });
       }
 
+      const loc = await getFreshLocation();
       await apiFetch("/alerts/trigger", {
         method: "POST",
         body: JSON.stringify({
           p_session_id: targetSessionId,
           p_trigger_type: "manual_sos",
-          p_lat: 0.0,
-          p_lng: 0.0,
-          p_accuracy: 1.0,
+          p_lat: loc?.lat ?? null,
+          p_lng: loc?.lng ?? null,
+          p_accuracy: loc?.accuracy ?? null,
           p_address: "Quick SOS Location",
         })
       });

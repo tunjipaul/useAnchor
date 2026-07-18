@@ -72,6 +72,7 @@ class SessionCreate(BaseModel):
     meet_person: str = Field(..., min_length=2, max_length=100)
     meet_phone: Optional[str] = Field(None, pattern=r"^\+[1-9]\d{1,14}$")
     destination_address: Optional[str] = Field(None, max_length=250)
+    person_image_urls: List[str] = Field(default_factory=list)
     checkin_interval_minutes: int = Field(30, ge=1, le=1440)
     expected_end: datetime
 
@@ -90,6 +91,7 @@ class SessionResponse(BaseModel):
     meet_person: str
     meet_phone: Optional[str] = None
     destination_address: Optional[str] = None
+    person_image_urls: List[str] = Field(default_factory=list)
     checkin_interval_minutes: int
     starts_at: Optional[datetime] = None
     expected_end: datetime
@@ -116,9 +118,9 @@ class CheckinResponse(BaseModel):
 class AlertTriggerRequest(BaseModel):
     p_session_id: int
     p_trigger_type: str = "manual_sos"
-    p_lat: Optional[float] = 0.0
-    p_lng: Optional[float] = 0.0
-    p_accuracy: Optional[float] = 1.0
+    p_lat: Optional[float] = None
+    p_lng: Optional[float] = None
+    p_accuracy: Optional[float] = None
     p_address: Optional[str] = None
 
 class AlertCancelRequest(BaseModel):

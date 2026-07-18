@@ -27,7 +27,7 @@ export default function ActiveSessionScreen() {
   const { triggerSOS, completeSession } = useSession();
   const startTracking = useLocationStore((s) => s.startTracking);
   const stopTracking = useLocationStore((s) => s.stopTracking);
-  const getCachedLocation = useLocationStore((s) => s.getLocation);
+  const getFreshLocation = useLocationStore((s) => s.getFreshLocation);
 
   const [session, setSession] = useState<any | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -286,11 +286,11 @@ export default function ActiveSessionScreen() {
     setErrorMsg(null);
 
     try {
-      const loc = getCachedLocation();
+      const loc = await getFreshLocation();
       await triggerSOS(session.id, {
-        lat: loc?.lat ?? 0.0,
-        lng: loc?.lng ?? 0.0,
-        accuracy: loc?.accuracy ?? 1.0,
+        lat: loc?.lat ?? null,
+        lng: loc?.lng ?? null,
+        accuracy: loc?.accuracy ?? null,
         address: session.location || "Unknown Location",
       });
 

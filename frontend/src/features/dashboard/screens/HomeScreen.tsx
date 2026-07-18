@@ -35,7 +35,7 @@ export default function HomeScreen() {
   const userName = profile?.full_name || "User";
   const startTracking = useLocationStore((s) => s.startTracking);
   const stopTracking = useLocationStore((s) => s.stopTracking);
-  const getCachedLocation = useLocationStore((s) => s.getLocation);
+  const getFreshLocation = useLocationStore((s) => s.getFreshLocation);
 
   const customIcon = useMemo(() => {
     return L.divIcon({
@@ -101,15 +101,15 @@ export default function HomeScreen() {
         });
       }
 
-      const loc = getCachedLocation();
+      const loc = await getFreshLocation();
       await apiFetch("/alerts/trigger", {
         method: "POST",
         body: JSON.stringify({
           p_session_id: targetSessionId,
           p_trigger_type: "manual_sos",
-          p_lat: loc?.lat ?? 0.0,
-          p_lng: loc?.lng ?? 0.0,
-          p_accuracy: loc?.accuracy ?? 1.0,
+          p_lat: loc?.lat ?? null,
+          p_lng: loc?.lng ?? null,
+          p_accuracy: loc?.accuracy ?? null,
           p_address: "Quick SOS Location",
         })
       });

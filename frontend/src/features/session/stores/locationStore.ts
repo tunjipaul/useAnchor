@@ -15,6 +15,7 @@ interface LocationState {
   startTracking: () => void;
   stopTracking: () => void;
   getLocation: () => CachedLocation | null;
+  getFreshLocation: (timeoutMs?: number) => Promise<CachedLocation | null>;
 }
 
 export const useLocationStore = create<LocationState>((set, get) => ({
@@ -68,5 +69,37 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 
   getLocation: () => {
     return get().cachedLocation;
+  },
+
+  getFreshLocation: (timeoutMs = 10000) => {
+    if (!navigator.geolocation) {
+      set({ error: "Geolocation is not supported by this browser." });
+      return Promise.resolve(get().cachedLocation);
+    }
+
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const freshLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp,
+          };
+          set({ cachedLocation: freshLocation, error: null });
+          resolve(freshLocation);
+        },
+        (err) => {
+          console.error("GPS lookup error:", err);
+          set({ error: err.message });
+          resolve(get().cachedLocation);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 30000,
+          timeout: timeoutMs,
+        }
+      );
+    });
   },
 }));

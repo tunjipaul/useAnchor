@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 import datetime
+import json
 from database import Base
 
 class OTPAuth(Base):
@@ -53,12 +54,23 @@ class AnchorSession(Base):
     meet_person = Column(String)
     meet_phone = Column(String, nullable=True)
     destination_address = Column(String, nullable=True)
+    person_image_urls_json = Column("person_image_urls", Text, nullable=True)
     checkin_interval_minutes = Column(Integer, default=30)
     
     starts_at = Column(DateTime, nullable=True)
     expected_end = Column(DateTime)
     
     status = Column(String, default="draft") # draft, active, ended, sos
+
+    @property
+    def person_image_urls(self):
+        if not self.person_image_urls_json:
+            return []
+        try:
+            value = json.loads(self.person_image_urls_json)
+            return value if isinstance(value, list) else []
+        except json.JSONDecodeError:
+            return []
     
 class Checkin(Base):
     __tablename__ = "checkins"

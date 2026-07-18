@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 # pyrefly: ignore [missing-import]
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import datetime
 import jwt
 import random
+import json
 import logging
 import database, models, schemas
 import urllib.request
@@ -19,6 +21,14 @@ from firebase_admin import credentials, messaging
 # Initialize DB
 models.Base.metadata.create_all(bind=database.engine)
 
+def ensure_session_person_images_column():
+    inspector = inspect(database.engine)
+    session_columns = [column["name"] for column in inspector.get_columns("sessions")]
+    if "person_image_urls" not in session_columns:
+        with database.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE sessions ADD COLUMN person_image_urls TEXT"))
+
+ensure_session_person_images_column()
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -316,7 +326,10 @@ async def _session_start_notification_worker_impl(session_id: int, db: Session):
                     "session_id": session.id,
                     "trigger_type": "session_start",
                     "status": "active",
-                    "user_name": user_name
+                    "user_name": user_name,
+                    "session_title": session.title,
+                    "meet_person": session.meet_person,
+                    "destination_address": session.destination_address
                 }
             }
             await manager.send_personal_message(message, profile.id)
@@ -611,14 +624,45 @@ def delete_account(db: Session = Depends(database.get_db), current_user: models.
 # ==========================================
 # 3. Safety Sessions
 # ==========================================
+@app.post("/api/sessions/person-images")
+async def upload_session_person_images(files: list[UploadFile] = File(...), current_user: models.Profile = Depends(get_current_user)):
+    if len(files) > 4:
+        raise HTTPException(status_code=400, detail="You can upload up to 4 person images per session.")
+
+    image_urls = []
+    try:
+        for file in files:
+            if file.content_type and not file.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="Only image uploads are allowed.")
+            contents = await file.read()
+            result = cloudinary.uploader.upload(
+                contents,
+                folder=f"useanchor_session_people/{current_user.id}",
+                resource_type="image"
+            )
+            image_urls.append(result.get("secure_url"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Cloudinary session image upload error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload person images.")
+
+    return {"image_urls": [url for url in image_urls if url]}
+
 @app.post("/api/sessions", response_model=schemas.SessionResponse)
 def create_session(request: schemas.SessionCreate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     session_data = request.dict()
+    person_image_urls = session_data.pop("person_image_urls", [])
     if session_data.get("meet_phone"):
         session_data["meet_phone"] = normalize_phone(session_data["meet_phone"])
     if session_data.get("expected_end") and session_data["expected_end"].tzinfo:
         session_data["expected_end"] = session_data["expected_end"].replace(tzinfo=None)
-    new_session = models.AnchorSession(**session_data, user_id=current_user.id, status="draft")
+    new_session = models.AnchorSession(
+        **session_data,
+        person_image_urls_json=json.dumps(person_image_urls[:4]),
+        user_id=current_user.id,
+        status="draft"
+    )
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
@@ -913,7 +957,8 @@ def get_alert_details(alert_id: int, db: Session = Depends(database.get_db), cur
             "title": session.title if session else "Unknown",
             "meet_person": session.meet_person if session else "",
             "destination_address": session.destination_address if session else "",
-            "description": session.description if session else ""
+            "description": session.description if session else "",
+            "person_image_urls": session.person_image_urls if session else []
         } if session else None,
         "profile": {
             "full_name": user.full_name if user else "Unknown User",

@@ -96,6 +96,7 @@ export default function IncidentDetailsScreen() {
             triggeredAt: data.triggered_at,
             triggerReason: data.trigger_type === "manual_sos" ? "SOS Triggered" : "Missed Check-In",
             sessionTitle: data.session?.title || "Active Safety Session",
+            personImageUrls: data.session?.person_image_urls || [],
             actualStart: data.session?.starts_at || data.triggered_at,
             expectedEnd: data.session?.expected_end,
             status: data.status,
@@ -277,6 +278,32 @@ export default function IncidentDetailsScreen() {
                 </div>
              </div>
           </section>
+
+          {alert.personImageUrls.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="text-[#ac2d00]" size={20} />
+                <h4 className="text-[18px] font-semibold text-[#261814]">Person To Identify</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {alert.personImageUrls.map((imageUrl: string, index: number) => (
+                  <a
+                    key={imageUrl}
+                    href={imageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block aspect-square overflow-hidden rounded-xl border border-[#e2bfb5] bg-white"
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Person reference ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Timeline */}
           <section className="space-y-3">

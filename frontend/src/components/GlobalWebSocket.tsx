@@ -8,7 +8,8 @@ export default function GlobalWebSocket() {
     if (!token) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).host : 'localhost:8000';
+    const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_PRIMARY_API_URL;
+    const wsHost = apiUrl ? new URL(apiUrl).host : 'localhost:8000';
     const wsUrl = `${protocol}//${wsHost}/api/ws/alerts?token=${token}`;
     
     let ws: WebSocket | null = null;

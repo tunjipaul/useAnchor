@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
@@ -14,6 +14,8 @@ import {
   Clock,
   CheckCircle,
   Loader2,
+  ImagePlus,
+  Trash2,
 } from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../auth/stores/useAuthStore";
@@ -81,6 +83,9 @@ export default function CreateSessionScreen() {
   const [personName, setPersonName] = useState("");
   const [phone, setPhone] = useState("");
   const [location, setLocation] = useState("Coffee House, 4th Ave");
+  const [personImages, setPersonImages] = useState<File[]>([]);
+  const [personImagePreviews, setPersonImagePreviews] = useState<string[]>([]);
+  const personImagePreviewsRef = useRef<string[]>([]);
   
   // Date and Time init
   const todayStr = new Date().toISOString().split("T")[0];
@@ -131,6 +136,53 @@ export default function CreateSessionScreen() {
   const [notes, setNotes] = useState("");
   const [isForceEnding, setIsForceEnding] = useState(false);
 
+  useEffect(() => {
+    personImagePreviewsRef.current = personImagePreviews;
+  }, [personImagePreviews]);
+
+  useEffect(() => {
+    return () => {
+      personImagePreviewsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+    };
+  }, []);
+
+  function handlePersonImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files || [])
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, 4 - personImages.length);
+
+    if (selectedFiles.length === 0) return;
+
+    setPersonImages((prev) => [...prev, ...selectedFiles].slice(0, 4));
+    setPersonImagePreviews((prev) => [
+      ...prev,
+      ...selectedFiles.map((file) => URL.createObjectURL(file)),
+    ].slice(0, 4));
+    event.target.value = "";
+  }
+
+  function removePersonImage(index: number) {
+    setPersonImages((prev) => prev.filter((_, imageIndex) => imageIndex !== index));
+    setPersonImagePreviews((prev) => {
+      const previewUrl = prev[index];
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      return prev.filter((_, imageIndex) => imageIndex !== index);
+    });
+  }
+
+  async function uploadPersonImages() {
+    if (personImages.length === 0) return [];
+
+    const formData = new FormData();
+    personImages.forEach((file) => formData.append("files", file));
+
+    const response = await apiFetch<{ image_urls: string[] }>("/sessions/person-images", {
+      method: "POST",
+      body: formData,
+    });
+
+    return response.image_urls;
+  }
   async function handleForceEndActiveSession() {
     if (!user) return;
     setIsForceEnding(true);
@@ -274,6 +326,8 @@ export default function CreateSessionScreen() {
       const isFuture = selectedDateTime.getTime() > now.getTime() + 10000;
       const startDate = isFuture ? selectedDateTime : undefined;
 
+      const personImageUrls = await uploadPersonImages();
+
       const sessionId = await createAndStartSession(
         {
           title,
@@ -282,6 +336,7 @@ export default function CreateSessionScreen() {
           destination_address: location || undefined,
           destination_lat: lat || undefined,
           destination_lng: lng || undefined,
+          person_image_urls: personImageUrls,
           durationMinutes,
           notes: notes || undefined,
           startDate,
@@ -381,6 +436,48 @@ export default function CreateSessionScreen() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                       />
+                    </div>
+                  </div>
+
+                  {/* Person Photos */}
+                  <div className="space-y-3 text-left">
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="text-[12px] font-semibold tracking-wider text-[#5a413a] uppercase">
+                        Person Photos
+                      </label>
+                      <span className="text-[11px] font-bold text-[#5a413a]">
+                        {personImages.length}/4
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2">
+                      {personImagePreviews.map((previewUrl, index) => (
+                        <div key={previewUrl} className="relative aspect-square rounded-lg overflow-hidden border border-[#e2bfb5] bg-white">
+                          <img src={previewUrl} alt={`Person reference ${index + 1}`} className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removePersonImage(index)}
+                            className="absolute right-1 top-1 h-7 w-7 rounded-full bg-[#261814]/80 text-white flex items-center justify-center active:scale-95"
+                            aria-label="Remove person photo"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+
+                      {personImages.length < 4 && (
+                        <label className="aspect-square rounded-lg border border-dashed border-[#ac2d00] bg-white text-[#ac2d00] flex flex-col items-center justify-center gap-1 cursor-pointer active:scale-95 transition-transform">
+                          <ImagePlus size={22} />
+                          <span className="text-[10px] font-bold uppercase">Add</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handlePersonImageChange}
+                            className="sr-only"
+                          />
+                        </label>
+                      )}
                     </div>
                   </div>
 
@@ -672,6 +769,24 @@ export default function CreateSessionScreen() {
                       </p>
                     </div>
                   </div>
+
+                  {personImagePreviews.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-[#e2bfb5]">
+                      <span className="text-[11px] font-semibold tracking-wider text-[#5a413a] uppercase block">
+                        PERSON PHOTOS ({personImagePreviews.length})
+                      </span>
+                      <div className="grid grid-cols-4 gap-2">
+                        {personImagePreviews.map((previewUrl, index) => (
+                          <img
+                            key={previewUrl}
+                            src={previewUrl}
+                            alt={`Person reference ${index + 1}`}
+                            className="aspect-square w-full rounded-lg border border-[#e2bfb5] object-cover"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Trusted Contacts in Review */}
                   <div className="space-y-2 pt-2 border-t border-[#e2bfb5]">

@@ -15,6 +15,7 @@ export function useSession() {
       destination_address?: string;
       destination_lat?: number;
       destination_lng?: number;
+      person_image_urls?: string[];
       durationMinutes: number;
       notes?: string;
       startDate?: Date;
@@ -38,6 +39,7 @@ export function useSession() {
           meet_person: sessionData.meet_person || "Unknown",
           meet_phone: sessionData.meet_phone || null,
           destination_address: sessionData.destination_address || null,
+          person_image_urls: sessionData.person_image_urls || [],
           // Calculate a sensible check-in interval: 
           // If duration is < 15, interval = duration. Otherwise 15.
           checkin_interval_minutes: Math.min(sessionData.durationMinutes, 15),
@@ -100,9 +102,9 @@ export function useSession() {
         body: JSON.stringify({
           p_session_id: parseInt(sessionId),
           p_trigger_type: "manual_sos",
-          p_lat: locationData.lat || 0.0,
-          p_lng: locationData.lng || 0.0,
-          p_accuracy: locationData.accuracy || 1.0,
+          p_lat: locationData.lat ?? null,
+          p_lng: locationData.lng ?? null,
+          p_accuracy: locationData.accuracy ?? null,
           p_address: locationData.address || "Unknown Location",
         })
       });
