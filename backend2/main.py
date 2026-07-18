@@ -111,6 +111,8 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+CHECKIN_GRACE_PERIOD_SECONDS = int(os.getenv("CHECKIN_GRACE_PERIOD_SECONDS", "90"))
+
 @app.websocket("/api/ws/alerts")
 async def websocket_endpoint(websocket: WebSocket, token: str):
     try:
@@ -436,7 +438,8 @@ async def check_dead_man_switch():
             needs_sos = False
             
             # Check 1: Past expected end time
-            if session.expected_end < now:
+            session_deadline = session.expected_end + datetime.timedelta(seconds=CHECKIN_GRACE_PERIOD_SECONDS)
+            if session_deadline < now:
                 needs_sos = True
                 print(f"Session {session.id} past expected end time")
             else:
@@ -444,7 +447,7 @@ async def check_dead_man_switch():
                 overdue_checkin = db.query(models.Checkin).filter(
                     models.Checkin.session_id == session.id,
                     models.Checkin.completed_at.is_(None),
-                    models.Checkin.scheduled_for < now
+                    models.Checkin.scheduled_for < now - datetime.timedelta(seconds=CHECKIN_GRACE_PERIOD_SECONDS)
                 ).first()
                 if overdue_checkin:
                     needs_sos = True
@@ -744,12 +747,14 @@ def start_session(session_id: int, request: schemas.SessionActionRequest, backgr
     session.status = "active"
     session.starts_at = datetime.datetime.utcnow()
     
-    # Schedule the first checkin
+    # Schedule the first check-in. For very short sessions, clamp to expected_end
+    # so the user still gets a final safety prompt instead of no check-in at all.
     next_checkin_time = session.starts_at + datetime.timedelta(minutes=session.checkin_interval_minutes)
-    if next_checkin_time < session.expected_end:
+    scheduled_checkin_time = min(next_checkin_time, session.expected_end)
+    if scheduled_checkin_time > session.starts_at:
         first_checkin = models.Checkin(
             session_id=session.id,
-            scheduled_for=next_checkin_time
+            scheduled_for=scheduled_checkin_time
         )
         db.add(first_checkin)
         
@@ -774,9 +779,23 @@ def extend_session(session_id: int, request: SessionExtendRequest, db: Session =
     session = db.query(models.AnchorSession).filter(models.AnchorSession.id == session_id, models.AnchorSession.user_id == current_user.id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
     dt = datetime.datetime.fromisoformat(request.new_expected_end.replace('Z', '+00:00'))
     session.expected_end = dt.replace(tzinfo=None) if dt.tzinfo else dt
+
+    pending_checkin = db.query(models.Checkin).filter(
+        models.Checkin.session_id == session.id,
+        models.Checkin.completed_at.is_(None),
+        models.Checkin.response.is_(None)
+    ).first()
+    now = datetime.datetime.utcnow()
+    next_checkin_time = now + datetime.timedelta(minutes=session.checkin_interval_minutes)
+    scheduled_checkin_time = min(next_checkin_time, session.expected_end)
+    if not pending_checkin and session.status == "active" and scheduled_checkin_time > now:
+        db.add(models.Checkin(
+            session_id=session.id,
+            scheduled_for=scheduled_checkin_time
+        ))
+
     db.commit()
     return {"message": "Session extended successfully"}
 
@@ -911,11 +930,13 @@ def complete_checkin(checkin_id: int, request: schemas.CheckinCompleteRequest, b
     
     # Schedule the next check-in
     if session and session.status == "active":
-        next_checkin_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=session.checkin_interval_minutes)
-        if next_checkin_time < session.expected_end:
+        now = datetime.datetime.utcnow()
+        next_checkin_time = now + datetime.timedelta(minutes=session.checkin_interval_minutes)
+        scheduled_checkin_time = min(next_checkin_time, session.expected_end)
+        if scheduled_checkin_time > now:
             next_checkin = models.Checkin(
                 session_id=session.id,
-                scheduled_for=next_checkin_time
+                scheduled_for=scheduled_checkin_time
             )
             db.add(next_checkin)
             

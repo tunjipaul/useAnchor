@@ -57,6 +57,9 @@ export default function ActiveSessionScreen() {
     
     try {
       const data = sessionId ? await apiFetch<any>(`/sessions/${sessionId}`) : await apiFetch<any>("/sessions/active");
+      const checkins = data ? await apiFetch<any[]>(`/sessions/${data.id}/checkins`).catch(() => []) : [];
+      const nextCheckin = checkins.find((checkin) => !checkin.completed_at && checkin.response !== "missed");
+      const countdownTarget = nextCheckin?.scheduled_for || data?.expected_end;
       
       if (data) {
         setSession({
@@ -83,7 +86,7 @@ export default function ActiveSessionScreen() {
         });
         
         // Calculate remaining time until expected_end
-        const end = new Date(data.expected_end).getTime();
+        const end = new Date(countdownTarget).getTime();
         const now = Date.now();
         setTimeLeft(Math.max(0, Math.floor((end - now) / 1000)));
       } else {
@@ -139,7 +142,10 @@ export default function ActiveSessionScreen() {
               expectedEnd: updated.expected_end,
             };
           });
-          const end = new Date(updated.expected_end).getTime();
+          const checkins = await apiFetch<any[]>(`/sessions/${updated.id}/checkins`).catch(() => []);
+          const nextCheckin = checkins.find((checkin) => !checkin.completed_at && checkin.response !== "missed");
+          const countdownTarget = nextCheckin?.scheduled_for || updated.expected_end;
+          const end = new Date(countdownTarget).getTime();
           setTimeLeft(Math.max(0, Math.floor((end - Date.now()) / 1000)));
         }
       } catch (err) {
