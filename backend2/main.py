@@ -746,7 +746,25 @@ def get_session_details(session_id: int, db: Session = Depends(database.get_db),
 
 @app.get("/api/sessions/{session_id}/checkins")
 def get_session_checkins(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    return db.query(models.Checkin).filter(models.Checkin.session_id == session_id).order_by(models.Checkin.id).all()
+    session = db.query(models.AnchorSession).filter(
+        models.AnchorSession.id == session_id,
+        models.AnchorSession.user_id == current_user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    checkins = db.query(models.Checkin).filter(models.Checkin.session_id == session_id).order_by(models.Checkin.id).all()
+    return [
+        {
+            "id": checkin.id,
+            "session_id": checkin.session_id,
+            "response": checkin.response,
+            "scheduled_for": checkin.scheduled_for,
+            "completed_at": checkin.completed_at,
+            "status": "completed" if checkin.completed_at else checkin.response or "scheduled",
+        }
+        for checkin in checkins
+    ]
 
 @app.get("/api/sessions/monitoring/active")
 def get_monitoring_sessions(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
@@ -823,11 +841,17 @@ def complete_checkin(checkin_id: int, request: schemas.CheckinCompleteRequest, b
     checkin = db.query(models.Checkin).filter(models.Checkin.id == checkin_id).first()
     if not checkin:
         raise HTTPException(status_code=404, detail="Check-in not found")
+    session = db.query(models.AnchorSession).filter(
+        models.AnchorSession.id == checkin.session_id,
+        models.AnchorSession.user_id == current_user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Check-in not found")
+
     checkin.completed_at = datetime.datetime.utcnow()
     checkin.response = "safe"
     
     # Schedule the next check-in
-    session = db.query(models.AnchorSession).filter(models.AnchorSession.id == checkin.session_id).first()
     if session and session.status == "active":
         next_checkin_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=session.checkin_interval_minutes)
         if next_checkin_time < session.expected_end:

@@ -192,7 +192,7 @@ export default function ActiveSessionScreen() {
     setIsLoading(true);
     try {
       const checkins = await apiFetch<any[]>(`/sessions/${session.id}/checkins`);
-      const checkin = checkins.find(c => c.status === "scheduled" || c.status === "pending");
+      const checkin = checkins.find(c => c.status === "scheduled" || c.status === "pending" || (!c.completed_at && !c.response));
 
       if (checkin) {
         await apiFetch(`/checkins/${checkin.id}/complete`, {
