@@ -96,6 +96,7 @@ class SessionResponse(BaseModel):
     starts_at: Optional[datetime] = None
     expected_end: datetime
     status: str
+    contacts: List[ContactResponse] = Field(default_factory=list)
     
     class Config:
         from_attributes = True

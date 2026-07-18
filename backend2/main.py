@@ -649,6 +649,48 @@ async def upload_session_person_images(files: list[UploadFile] = File(...), curr
 
     return {"image_urls": [url for url in image_urls if url]}
 
+def session_contacts_payload(session: models.AnchorSession, db: Session):
+    session_contacts = db.query(models.SessionContact).filter(models.SessionContact.session_id == session.id).all()
+    if not session_contacts:
+        return []
+
+    contact_ids = [sc.contact_id for sc in session_contacts]
+    contacts = db.query(models.TrustedContact).filter(
+        models.TrustedContact.id.in_(contact_ids),
+        models.TrustedContact.user_id == session.user_id
+    ).all()
+
+    return [
+        {
+            "id": contact.id,
+            "user_id": contact.user_id,
+            "name": contact.name,
+            "phone_number": contact.phone_number,
+            "relationship": contact.relationship,
+            "is_emergency_contact": contact.is_emergency_contact,
+            "opted_in": contact.opted_in,
+            "has_account": db.query(models.Profile).filter(models.Profile.phone == contact.phone_number).first() is not None,
+        }
+        for contact in contacts
+    ]
+
+
+def session_payload(session: models.AnchorSession, db: Session):
+    return {
+        "id": session.id,
+        "user_id": session.user_id,
+        "title": session.title,
+        "description": session.description,
+        "meet_person": session.meet_person,
+        "meet_phone": session.meet_phone,
+        "destination_address": session.destination_address,
+        "person_image_urls": session.person_image_urls,
+        "checkin_interval_minutes": session.checkin_interval_minutes,
+        "starts_at": session.starts_at,
+        "expected_end": session.expected_end,
+        "status": session.status,
+        "contacts": session_contacts_payload(session, db),
+    }
 @app.post("/api/sessions", response_model=schemas.SessionResponse)
 def create_session(request: schemas.SessionCreate, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     session_data = request.dict()
@@ -670,14 +712,29 @@ def create_session(request: schemas.SessionCreate, db: Session = Depends(databas
 
 @app.post("/api/sessions/{session_id}/contacts")
 def add_session_contacts(session_id: int, request: schemas.SessionContactsRequest, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
+    session = db.query(models.AnchorSession).filter(
+        models.AnchorSession.id == session_id,
+        models.AnchorSession.user_id == current_user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    valid_contacts = db.query(models.TrustedContact).filter(
+        models.TrustedContact.user_id == current_user.id,
+        models.TrustedContact.id.in_(request.contact_ids)
+    ).all() if request.contact_ids else []
+    valid_contact_ids = {contact.id for contact in valid_contacts}
+    if len(valid_contact_ids) != len(set(request.contact_ids)):
+        raise HTTPException(status_code=400, detail="One or more contacts are invalid")
+
     # Remove any existing session contacts before adding the new ones
     db.query(models.SessionContact).filter(models.SessionContact.session_id == session_id).delete()
     
-    for contact_id in request.contact_ids:
+    for contact_id in valid_contact_ids:
         session_contact = models.SessionContact(session_id=session_id, contact_id=contact_id)
         db.add(session_contact)
     db.commit()
-    return {"message": f"Added {len(request.contact_ids)} contacts to session {session_id}"}
+    return {"message": f"Added {len(valid_contact_ids)} contacts to session {session_id}"}
 
 @app.post("/api/sessions/{session_id}/start")
 def start_session(session_id: int, request: schemas.SessionActionRequest, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
@@ -731,18 +788,19 @@ def get_active_session(db: Session = Depends(database.get_db), current_user: mod
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="No active session")
-    return session
+    return session_payload(session, db)
 
 @app.get("/api/sessions/history", response_model=list[schemas.SessionResponse])
 def get_session_history(db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
-    return db.query(models.AnchorSession).filter(models.AnchorSession.user_id == current_user.id, models.AnchorSession.status != "draft").all()
+    sessions = db.query(models.AnchorSession).filter(models.AnchorSession.user_id == current_user.id, models.AnchorSession.status != "draft").all()
+    return [session_payload(session, db) for session in sessions]
 
 @app.get("/api/sessions/{session_id}", response_model=schemas.SessionResponse)
 def get_session_details(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):
     session = db.query(models.AnchorSession).filter(models.AnchorSession.id == session_id, models.AnchorSession.user_id == current_user.id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return session
+    return session_payload(session, db)
 
 @app.get("/api/sessions/{session_id}/checkins")
 def get_session_checkins(session_id: int, db: Session = Depends(database.get_db), current_user: models.Profile = Depends(get_current_user)):

@@ -69,7 +69,12 @@ export default function ActiveSessionScreen() {
           time: new Date(data.starts_at || data.expected_end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           durationMinutes: data.checkin_interval_minutes || 30,
           notes: data.description || "",
-          contacts: [], // Mocked for MVP
+          contacts: (data.contacts || []).map((contact: any) => ({
+            id: String(contact.id),
+            name: contact.name,
+            phone: contact.phone_number,
+            selected: true,
+          })),
           startedAt: data.starts_at || data.expected_end,
           expectedEnd: data.expected_end,
           status: data.status,
